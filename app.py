@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import io
+import os
 
 # ---------------------------------------------------------
 # PAGE CONFIG & CUSTOM CSS (STYLING)
@@ -49,11 +50,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# DATABASE INITIALIZATION
+# DATABASE INITIALIZATION (AUTO REBUILD TO FIX COLUMNS)
 # ---------------------------------------------------------
 def init_db():
     conn = sqlite3.connect("stock_materiux.db")
     c = conn.cursor()
+    
+    # التأكد من وجود جدول المخزون
     c.execute('''
         CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,19 +68,34 @@ def init_db():
             unit TEXT NOT NULL
         )
     ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            item_name TEXT NOT NULL,
-            type TEXT NOT NULL,
-            quantity REAL NOT NULL,
-            total_price REAL DEFAULT 0,
-            date TEXT NOT NULL,
-            entity TEXT,
-            ref_num TEXT,
-            notes TEXT
-        )
-    ''')
+    
+    # التحقق من أعمدة جدول الحركات وتحديثها إذا كانت ناقصة
+    c.execute("PRAGMA table_info(transactions)")
+    columns = [col[1] for col in c.fetchall()]
+    
+    if not columns:
+        c.execute('''
+            CREATE TABLE transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_name TEXT NOT NULL,
+                type TEXT NOT NULL,
+                quantity REAL NOT NULL,
+                total_price REAL DEFAULT 0,
+                date TEXT NOT NULL,
+                entity TEXT,
+                ref_num TEXT,
+                notes TEXT
+            )
+        ''')
+    else:
+        # إضافة الأعمدة الناقصة إن وجدت لتجنب أي خطأ
+        if 'entity' not in columns:
+            c.execute("ALTER TABLE transactions ADD COLUMN entity TEXT")
+        if 'ref_num' not in columns:
+            c.execute("ALTER TABLE transactions ADD COLUMN ref_num TEXT")
+        if 'notes' not in columns:
+            c.execute("ALTER TABLE transactions ADD COLUMN notes TEXT")
+            
     conn.commit()
     conn.close()
 

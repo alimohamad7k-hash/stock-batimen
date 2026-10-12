@@ -15,26 +15,19 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Main Background & Font */
     .stApp {
         background-color: #F8FAFC;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    
-    /* Headers Styling */
     h1, h2, h3 {
         color: #0F172A;
         font-weight: 700;
     }
-    
-    /* Fix Input Fields Dark Background Issue */
     div[data-baseweb="select"] > div, input[type="text"], input[type="number"], textarea {
         background-color: #FFFFFF !important;
         color: #0F172A !important;
         border-color: #CBD5E1 !important;
     }
-    
-    /* Modern Metrics Cards */
     [data-testid="stMetric"] {
         background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
         padding: 20px;
@@ -53,8 +46,6 @@ st.markdown("""
         color: #64748B;
         font-weight: 600;
     }
-
-    /* Buttons Styling */
     .stButton>button {
         background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
         color: white !important;
@@ -67,8 +58,6 @@ st.markdown("""
     .stButton>button:hover {
         background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
     }
-
-    /* Download Excel Buttons */
     .stDownloadButton>button {
         background: linear-gradient(135deg, #16A34A 0%, #15803D 100%) !important;
         color: white !important;
@@ -77,8 +66,6 @@ st.markdown("""
         border: none;
         padding: 10px 20px;
     }
-
-    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
         background-color: #0F172A;
         border-left: 1px solid #1E293B;
@@ -86,8 +73,6 @@ st.markdown("""
     section[data-testid="stSidebar"] .stRadio, section[data-testid="stSidebar"] .stSelectbox label, section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] div {
         color: #F8FAFC !important;
     }
-    
-    /* Form Container Polish */
     div[data-testid="stForm"] {
         background-color: #ffffff;
         padding: 25px;
@@ -95,8 +80,6 @@ st.markdown("""
         border: 1px solid #E2E8F0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
-    
-    /* Printable Receipt Card Style */
     .receipt-box {
         background-color: #ffffff;
         border: 2px solid #0F172A;
@@ -304,7 +287,7 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                         (selected_item, "خروج", qty_out, custom_sell_price, total_amt, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), chantier, ref_num, notes))
                     conn.commit()
                     conn.close()
-                    st.success("تم تسجيل الخروج بنجاح! يمكنك الانتقال لصفحة 'طباعة وصل التسليم' لاستخراج الوصل.")
+                    st.success("تم تسجيل الخروج بنجاح!")
                     st.rerun()
                 else:
                     st.error("الكمية المطلوبة أكبر من المتوفر في السطوك!")
@@ -537,7 +520,7 @@ elif choice == "🔐 إدارة وتعديل المواد والحركات (مح
         st.error("❌ كلمة السر غير صحيحة!")
 
 # ---------------------------------------------------------
-# 7. HISTORIQUE & EXCEL
+# 6. HISTORIQUE & EXCEL
 # ---------------------------------------------------------
 elif choice == "📜 السجل والتقارير":
     st.subheader("📜 تاريخ الحركات ومجموع المبالغ اليومية")
@@ -596,7 +579,7 @@ elif choice == "📜 السجل والتقارير":
         st.info("لا توجد أي حركات مسجلة حتى الآن.")
 
 # ---------------------------------------------------------
-# 8. BACKUP DATABASE
+# 7. BACKUP DATABASE
 # ---------------------------------------------------------
 elif choice == "💾 النسخ الاحتياطي":
     st.subheader("💾 حفظ نسخة احتياطية من قاعدة البيانات")

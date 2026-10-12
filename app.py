@@ -291,14 +291,12 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (selected_item, "خروج", qty_out, custom_sell_price, total_amt, current_time, chantier, ref_num, notes))
                 
-                # جلب الـ ID ديال آخر عملية تم إدخالها للتو لطباعة البون الخاص بها
                 last_id = c.lastrowid
                 conn.commit()
                 conn.close()
                 
                 st.success("✅ تم تسجيل خروج السلعة بنجاح! إليك وصل التسليم الخاص بهذه العملية:")
                 
-                # عرض وصل التسليم مباشرة
                 html_bon = f"""
                 <div class="receipt-box">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0F172A; padding-bottom: 15px; margin-bottom: 25px;">
@@ -354,6 +352,7 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                     </div>
                 </div>
                 """
+                # FIXED: Added unsafe_allow_html=True here!
                 st.markdown(html_bon, unsafe_allow_html=True)
                 st.write("")
                 st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في Mac) واطبع الوصل.")
@@ -440,6 +439,7 @@ elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
                 </div>
             </div>
             """
+            # FIXED: Added unsafe_allow_html=True here too!
             st.markdown(html_bon, unsafe_allow_html=True)
             st.write("")
             st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في جهاز Mac).")

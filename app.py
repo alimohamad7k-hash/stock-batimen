@@ -5,7 +5,7 @@ from datetime import datetime
 import io
 
 # ---------------------------------------------------------
-# PAGE CONFIG & CUSTOM CSS (STYLING)
+# PAGE CONFIG & PREMIUM MODERN CSS STYLING
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="نظام إدارة مخزون البناء والمشاريع",
@@ -15,35 +15,98 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    h1, h2, h3 {
-        color: #1E3A8A;
+    /* Main Background & Font */
+    .stApp {
+        background-color: #F8FAFC;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    [data-testid="stMetricValue"] {
-        font-size: 24px !important;
-        font-weight: bold;
-        color: #0F766E;
+    
+    /* Headers Styling */
+    h1, h2, h3 {
+        color: #0F172A;
+        font-weight: 700;
     }
+    
+    /* Modern Metrics Cards */
     [data-testid="stMetric"] {
-        background-color: #F3F4F6;
-        padding: 15px;
-        border-radius: 12px;
-        border-right: 5px solid #2563EB;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border-right: 6px solid #3B82F6;
+        transition: transform 0.2s ease;
     }
-    .stDownloadButton>button {
-        background-color: #16A34A !important;
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 28px !important;
+        font-weight: 800;
+        color: #1E3A8A;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 14px !important;
+        color: #64748B;
+        font-weight: 600;
+    }
+
+    /* Buttons Styling */
+    .stButton>button {
+        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
         color: white !important;
         font-weight: bold;
-        border-radius: 8px;
+        border-radius: 10px;
         border: none;
-        padding: 8px 16px;
+        padding: 10px 24px;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
+        box-shadow: 0 6px 8px rgba(37, 99, 235, 0.3);
+        transform: translateY(-1px);
+    }
+
+    /* Download Excel Buttons */
+    .stDownloadButton>button {
+        background: linear-gradient(135deg, #16A34A 0%, #15803D 100%) !important;
+        color: white !important;
+        font-weight: bold;
+        border-radius: 10px;
+        border: none;
+        padding: 10px 20px;
+        box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2);
     }
     .stDownloadButton>button:hover {
-        background-color: #15803D !important;
+        background: linear-gradient(135deg, #15803D 0%, #166534 100%) !important;
     }
+
+    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #F8FAFC;
+        background-color: #0F172A;
+        border-left: 1px solid #1E293B;
+    }
+    section[data-testid="stSidebar"] .stRadio, section[data-testid="stSidebar"] .stSelectbox label, section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] div {
+        color: #F8FAFC !important;
+    }
+    
+    /* Form Container Polish */
+    div[data-testid="stForm"] {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 16px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    }
+    
+    /* Dataframes Styling */
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -93,6 +156,7 @@ def get_connection():
 # SIDEBAR NAVIGATION
 # ---------------------------------------------------------
 st.sidebar.title("🏗️ BTP Stock Pro")
+st.sidebar.markdown("<p style='color: #94A3B8; font-size: 13px;'>نظام إدارة وتتبع مواد البناء والمشاريع</p>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
 menu = [
@@ -111,6 +175,8 @@ choice = st.sidebar.selectbox("القائمة الرئيسية", menu)
 # ---------------------------------------------------------
 if choice == "📊 لوحة التحكم":
     st.title("📊 لوحة القيادة والمؤشرات الرئيسية")
+    st.markdown("<p style='color: #64748B;'>نظرة عامة على وضعية المخزون والقيمة الإجمالية للسلع.</p>", unsafe_allow_html=True)
+    st.write("")
     
     conn = get_connection()
     df_stock = pd.read_sql_query("SELECT * FROM inventory", conn)
@@ -120,17 +186,17 @@ if choice == "📊 لوحة التحكم":
         df_stock['total_value'] = df_stock['quantity'] * df_stock['buy_price']
         
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("💰 القيمة الإجمالية للسطوك", f"{df_stock['total_value'].sum():,.2f} DH")
-        col2.metric("📦 عدد أنواع السلع", len(df_stock))
+        col1.metric("💰 قيمة السطوك", f"{df_stock['total_value'].sum():,.2f} DH")
+        col2.metric("📦 أنواع السلع", len(df_stock))
         
         low_stock_count = len(df_stock[df_stock['quantity'] <= df_stock['min_limit']])
-        col3.metric("⚠️ مواد قريبة من النفاد", low_stock_count, delta_color="inverse")
-        col4.metric("📈 متوسط سعر الشراء", f"{df_stock['buy_price'].mean():,.2f} DH")
+        col3.metric("⚠️ مواد قريبة من النفاد", low_stock_count)
+        col4.metric("📈 متوسط ثمن الشراء", f"{df_stock['buy_price'].mean():,.2f} DH")
         
         st.write("---")
         
         if low_stock_count > 0:
-            st.error("⚠️ **تنبيه: السلع التالية وصلت للحد الأدنى للمخزون:**")
+            st.error("⚠️ **تنبيه هام: السلع التالية وصلت للحد الأدنى للمخزون أو أقل:**")
             low_df = df_stock[df_stock['quantity'] <= df_stock['min_limit']]
             st.dataframe(low_df[['item_name', 'quantity', 'min_limit', 'unit']], use_container_width=True)
             st.write("---")
@@ -154,13 +220,16 @@ if choice == "📊 لوحة التحكم":
         })
         st.dataframe(display_df.drop(columns=['id']), use_container_width=True)
     else:
-        st.info("💡 لا توجد مواد مسجلة حتى الآن في النظام.")
+        st.info("💡 لا توجد مواد مسجلة حتى الآن في النظام. ابدأ بإضافة مواد جديدة من القائمة الجانبية.")
 
 # ---------------------------------------------------------
 # 2. ENTRÉE / RÉCEPTION
 # ---------------------------------------------------------
 elif choice == "📥 تسجيل دخول سلعة":
-    st.subheader("📥 تسجيل دخول سلعة من المورد (مع تحديد ثمن الشراء)")
+    st.subheader("📥 تسجيل دخول سلعة من المورد (Fournisseur)")
+    st.markdown("<p style='color: #64748B;'>أدخل تفاصيل الشحنة المستلمة مع تحديد ثمن الشراء الخاص بالمورد.</p>", unsafe_allow_html=True)
+    st.write("")
+    
     conn = get_connection()
     df_items = pd.read_sql_query("SELECT item_name, buy_price FROM inventory", conn)
     conn.close()
@@ -174,12 +243,13 @@ elif choice == "📥 تسجيل دخول سلعة":
                 selected_item = st.selectbox("اختر المادة:", df_items["item_name"].tolist())
                 default_buy = float(df_items[df_items["item_name"] == selected_item]["buy_price"].values[0])
                 qty_in = st.number_input("الكمية المضافة:", min_value=0.1, value=1.0)
-                custom_buy_price = st.number_input("ثمن الشراء من عند هاد المورد (DH):", min_value=0.0, value=default_buy)
+                custom_buy_price = st.number_input("ثمن الشراء من عند المورد (DH):", min_value=0.0, value=default_buy)
             with col2:
                 supplier = st.text_input("اسم المورد (Fournisseur):")
                 ref_num = st.text_input("رقم الفاتورة أو البون (N° Bon):")
                 notes = st.text_input("ملاحظات إضافية:")
             
+            st.write("")
             if st.form_submit_button("✅ تأكيد تسجيل الدخول"):
                 total_cost = qty_in * custom_buy_price
                 conn = get_connection()
@@ -198,7 +268,10 @@ elif choice == "📥 تسجيل دخول سلعة":
 # 3. SORTIE / CHANTIER
 # ---------------------------------------------------------
 elif choice == "📤 تسجيل خروج سلعة للورش":
-    st.subheader("📤 تسجيل خروج سلعة إلى ورش البناء (مع تحديد ثمن البيع للزبون)")
+    st.subheader("📤 تسجيل خروج سلعة إلى ورش البناء (Chantier)")
+    st.markdown("<p style='color: #64748B;'>حدد الكمية الخارجة وثمن البيع المخصص لكل ورش أو زبون.</p>", unsafe_allow_html=True)
+    st.write("")
+    
     conn = get_connection()
     df_inv = pd.read_sql_query("SELECT item_name, quantity, sell_price, unit FROM inventory", conn)
     conn.close()
@@ -220,6 +293,7 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                 ref_num = st.text_input("رقم إذن الخروج (Bon de sortie):")
                 notes = st.text_input("ملاحظات (اسم السائق / المسؤول):")
             
+            st.write("")
             if st.form_submit_button("🚀 تأكيد الخروج"):
                 if item_row_data['quantity'] >= qty_out:
                     total_amt = qty_out * custom_sell_price
@@ -242,6 +316,9 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
 # ---------------------------------------------------------
 elif choice == "➕ إضافة مادة جديدة":
     st.subheader("➕ إضافة مادة بناء جديدة للقائمة")
+    st.markdown("<p style='color: #64748B;'>تسجيل مادة جديدة وتحديد وحدتها والحد الأدنى للتنبيه.</p>", unsafe_allow_html=True)
+    st.write("")
+    
     with st.form("add_item_form"):
         col1, col2 = st.columns(2)
         with col1:
@@ -253,7 +330,8 @@ elif choice == "➕ إضافة مادة جديدة":
             buy_price = st.number_input("سعر الشراء الافتراضي (DH)", min_value=0.0, value=0.0)
             sell_price = st.number_input("سعر البيع الافتراضي (DH)", min_value=0.0, value=0.0)
 
-        if st.form_submit_button("💾 إضافة المادة"):
+        st.write("")
+        if st.form_submit_button("💾 إضافة المادة بنجاح"):
             if item_name.strip() != "":
                 conn = get_connection()
                 c = conn.cursor()
@@ -272,7 +350,7 @@ elif choice == "➕ إضافة مادة جديدة":
                     st.success("تمت إضافة المادة بنجاح!")
                     st.rerun()
                 except sqlite3.IntegrityError:
-                    st.error("هذه المادة توجد بالفعل!")
+                    st.error("هذه المادة توجد بالفعل في السطوك!")
                 finally:
                     conn.close()
 
@@ -280,17 +358,19 @@ elif choice == "➕ إضافة مادة جديدة":
 # 5. EDIT / DELETE ITEMS & TRANSACTIONS (PROTECTED BY PASSWORD)
 # ---------------------------------------------------------
 elif choice == "🔐 إدارة وتعديل المواد والحركات (محمي)":
-    st.subheader("🔐 صفحة محمية: تعديل، حذف، وإصلاح الأخطاء (المسؤول فقط)")
+    st.subheader("🔐 صفحة محمية: إدارة، تعديل، وتصحيح الأخطاء")
+    st.markdown("<p style='color: #64748B;'>منطقة خاصة بالمسؤول لتعديل الأثمنة أو حذف الحركات الخاطئة.</p>", unsafe_allow_html=True)
+    st.write("")
     
     ADMIN_PASSWORD = "admin123"
     password_input = st.text_input("أدخل كلمة سر المسؤول (Admin Password):", type="password")
     
     if password_input == ADMIN_PASSWORD:
-        st.success("مرحبا بك يا باشا، تم التحقق بنجاح. يمكنك الآن تصحيح أي خطأ.")
+        st.success("مرحبا بك يا مسؤول، تم التحقق بنجاح.")
+        st.write("")
         
         tab1, tab2 = st.tabs(["🛠️ تعديل أو حذف المواد", "📜 إدارة وتصحيح الحركات السابقة"])
         
-        # --- TAB 1: EDIT / DELETE ITEMS ---
         with tab1:
             conn = get_connection()
             df_inv = pd.read_sql_query("SELECT * FROM inventory", conn)
@@ -309,6 +389,7 @@ elif choice == "🔐 إدارة وتعديل المواد والحركات (مح
                         new_sell = st.number_input("تعديل ثمن البيع الافتراضي (DH):", min_value=0.0, value=float(item_row['sell_price']))
                         new_unit = st.selectbox("تعديل الوحدة:", ["Sac", "Kg", "Tonne", "Unité", "m³", "Mètre"])
                     
+                    st.write("")
                     if st.form_submit_button("✏️ تحديث بيانات المادة"):
                         conn = get_connection()
                         c = conn.cursor()
@@ -319,56 +400,50 @@ elif choice == "🔐 إدارة وتعديل المواد والحركات (مح
                         """, (new_min, new_buy, new_sell, new_unit, selected_item))
                         conn.commit()
                         conn.close()
-                        st.success("تم تحديث المادة بنجاح!")
+                        st.success("تم التحديث بنجاح!")
                         st.rerun()
 
                 st.write("---")
-                if st.button(f"🗑️ حذف المادة '{selected_item}' نهائياً من القائمة"):
+                if st.button(f"🗑️ حذف المادة '{selected_item}' نهائياً"):
                     conn = get_connection()
                     c = conn.cursor()
                     c.execute("DELETE FROM inventory WHERE item_name=?", (selected_item,))
                     conn.commit()
                     conn.close()
-                    st.warning("تم حذف المادة بنجاح!")
+                    st.warning("تم الحذف بنجاح!")
                     st.rerun()
             else:
                 st.info("لا توجد مواد في المخزون للتعديل.")
 
-        # --- TAB 2: EDIT / DELETE TRANSACTIONS (إصلاح الحركات) ---
         with tab2:
-            st.write("هنا يمكنك مراجعة آخر الحركات، وفي حالة وجود خطأ يمكنك **حذف الحركة** أو تعديلها:")
+            st.write("اختر الحركة التي وقع فيها خطأ لحذفها وتصحيح المخزون تلقائياً:")
             conn = get_connection()
             df_trans = pd.read_sql_query("SELECT * FROM transactions ORDER BY id DESC", conn)
             conn.close()
             
             if not df_trans.empty:
-                # عرض قائمة مختصرة لاختيار الحركة المراد تعديلها أو حذفها
                 trans_options = [f"ID: {row['id']} | {row['date']} | {row['type']} | {row['item_name']} | كمية: {row['quantity']}" for index, row in df_trans.iterrows()]
-                selected_trans_str = st.selectbox("اختر الحركة التي تريد إصلاحها أو حذفها:", trans_options)
+                selected_trans_str = st.selectbox("اختر الحركة:", trans_options)
                 
                 if selected_trans_str:
                     trans_id = int(selected_trans_str.split("|")[0].replace("ID:", "").strip())
                     trans_row = df_trans[df_trans['id'] == trans_id].iloc[0]
                     
-                    st.info(f"تفاصيل الحركة المختارة: المادة (**{trans_row['item_name']}**) | النوع: **{trans_row['type']}** | الكمية: **{trans_row['quantity']}**")
+                    st.info(f"تفاصيل الحركة: المادة (**{trans_row['item_name']}**) | النوع: **{trans_row['type']}** | الكمية: **{trans_row['quantity']}**")
                     
-                    col_del, col_info = st.columns([1, 2])
-                    with col_del:
-                        if st.button("🗑️ حذف هذه الحركة كلياً وتصحيح السطوك"):
-                            conn = get_connection()
-                            c = conn.cursor()
-                            # إذا كانت الحركة دخول، ننقص الكمية من السطوك. وإذا كانت خروج، نرجعها للسطوك.
-                            if trans_row['type'] == 'دخول':
-                                c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (trans_row['quantity'], trans_row['item_name']))
-                            else:
-                                c.execute("UPDATE inventory SET quantity = quantity + ? WHERE item_name = ?", (trans_row['quantity'], trans_row['item_name']))
-                            
-                            # حذف الحركة من جدول الحركات
-                            c.execute("DELETE FROM transactions WHERE id = ?", (trans_id,))
-                            conn.commit()
-                            conn.close()
-                            st.success("تم حذف الحركة وإرجاع الأمور لنصابها في السطوك بنجاح!")
-                            st.rerun()
+                    if st.button("🗑️ حذف هذه الحركة وإصلاح السطوك"):
+                        conn = get_connection()
+                        c = conn.cursor()
+                        if trans_row['type'] == 'دخول':
+                            c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (trans_row['quantity'], trans_row['item_name']))
+                        else:
+                            c.execute("UPDATE inventory SET quantity = quantity + ? WHERE item_name = ?", (trans_row['quantity'], trans_row['item_name']))
+                        
+                        c.execute("DELETE FROM transactions WHERE id = ?", (trans_id,))
+                        conn.commit()
+                        conn.close()
+                        st.success("تمت عملية الإصلاح بنجاح!")
+                        st.rerun()
             else:
                 st.info("لا توجد أي حركات مسجلة لتصحيحها.")
             
@@ -380,6 +455,9 @@ elif choice == "🔐 إدارة وتعديل المواد والحركات (مح
 # ---------------------------------------------------------
 elif choice == "📜 السجل والتقارير":
     st.subheader("📜 تاريخ الحركات ومجموع المبالغ اليومية")
+    st.markdown("<p style='color: #64748B;'>سجل شامل لكل عمليات الدخول والخروج مع إمكانية التحميل بصيغة Excel.</p>", unsafe_allow_html=True)
+    st.write("")
+    
     conn = get_connection()
     df_trans = pd.read_sql_query("""
         SELECT date, item_name, type, quantity, unit_price, total_price, entity, ref_num, notes 
@@ -415,6 +493,7 @@ elif choice == "📜 السجل والتقارير":
             daily_summary = daily_summary.rename(columns={'خروج': 'إجمالي المبيعات (خروج) DH'})
             
         st.dataframe(daily_summary, use_container_width=True)
+        st.write("")
         
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -435,8 +514,11 @@ elif choice == "📜 السجل والتقارير":
 # ---------------------------------------------------------
 elif choice == "💾 النسخ الاحتياطي":
     st.subheader("💾 حفظ نسخة احتياطية من قاعدة البيانات")
+    st.markdown("<p style='color: #64748B;'>تحميل نسخة أمان لملف قاعدة البيانات للاحتفاظ بها.</p>", unsafe_allow_html=True)
+    st.write("")
+    
     try:
-        with open(DB_Name if 'DB_Name' in locals() else DB_NAME, "rb") as fp:
+        with open(DB_NAME, "rb") as fp:
             st.download_button(
                 label="📥 تحميل ملف قاعدة البيانات (.db)",
                 data=fp,

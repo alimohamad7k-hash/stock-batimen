@@ -13,22 +13,17 @@ st.set_page_config(
     layout="wide"
 )
 
-# إضافة لمسات جمالية بالتصميم (CSS)
 st.markdown("""
     <style>
-    /* تحسين العناوين */
     h1, h2, h3 {
         color: #1E3A8A;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    
-    /* تصميم بطاقات المؤشرات (KPIs) */
     [data-testid="stMetricValue"] {
         font-size: 26px !important;
         font-weight: bold;
         color: #0F766E;
     }
-    
     [data-testid="stMetric"] {
         background-color: #F3F4F6;
         padding: 15px;
@@ -36,8 +31,6 @@ st.markdown("""
         border-right: 5px solid #2563EB;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
     }
-    
-    /* زر Excel مخصص */
     .stDownloadButton>button {
         background-color: #16A34A !important;
         color: white !important;
@@ -49,8 +42,6 @@ st.markdown("""
     .stDownloadButton>button:hover {
         background-color: #15803D !important;
     }
-    
-    /* تحسين شكل القائمة الجانبية */
     section[data-testid="stSidebar"] {
         background-color: #F8FAFC;
     }
@@ -196,6 +187,7 @@ elif choice == "📥 تسجيل دخول سلعة":
                 conn.commit()
                 conn.close()
                 st.success(f"تمت إضافة الكمية للمادة '{selected_item}' بنجاح!")
+                st.rerun()
 
 # ---------------------------------------------------------
 # 3. SORTIE / CHANTIER
@@ -213,8 +205,8 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
             col1, col2 = st.columns(2)
             with col1:
                 selected_item = st.selectbox("اختر المادة:", df_inv["item_name"].tolist())
-                item_data = df_inv[df_inv["item_name"] == selected_item].iloc[0]
-                st.info(f"المتوفر حالياً: **{item_data['quantity']} {item_data['unit']}**")
+                item_row_data = df_inv[df_inv["item_name"] == selected_item].iloc[0]
+                st.info(f"المتوفر حالياً: **{item_row_data['quantity']} {item_row_data['unit']}**")
                 qty_out = st.number_input("الكمية الخارجة:", min_value=0.1, value=1.0)
             with col2:
                 chantier = st.text_input("اسم الورش (Chantier):")
@@ -222,8 +214,8 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                 notes = st.text_input("ملاحظات (اسم سائق الشاحنة / السائق):")
             
             if st.form_submit_button("🚀 تأكيد الخروج"):
-                if item_data['quantity'] >= qty_out:
-                    total_amt = qty_out * item_data['sell_price']
+                if item_row_data['quantity'] >= qty_out:
+                    total_amt = qty_out * item_row_data['sell_price']
                     conn = get_connection()
                     c = conn.cursor()
                     c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (qty_out, selected_item))
@@ -271,6 +263,7 @@ elif choice == "➕ إضافة مادة جديدة":
                              datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "مخزون أولي"))
                     conn.commit()
                     st.success("تمت إضافة المادة بنجاح!")
+                    st.rerun()
                 except sqlite3.IntegrityError:
                     st.error("هذه المادة توجد بالفعل!")
                 finally:

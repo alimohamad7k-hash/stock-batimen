@@ -100,7 +100,7 @@ menu = [
     "📥 تسجيل دخول سلعة", 
     "📤 تسجيل خروج سلعة للورش", 
     "➕ إضافة مادة جديدة",
-    "🔐 إدارة وتعديل المواد (محمي)",
+    "🔐 إدارة وتعديل المواد والحركات (محمي)",
     "📜 السجل والتقارير",
     "💾 النسخ الاحتياطي"
 ]
@@ -191,7 +191,7 @@ elif choice == "📥 تسجيل دخول سلعة":
                     (selected_item, "دخول", qty_in, custom_buy_price, total_cost, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), supplier, ref_num, notes))
                 conn.commit()
                 conn.close()
-                st.success(f"تمت إضافة الكمية للمادة '{selected_item}' بنجاح بثمن شراء {custom_buy_price} DH!")
+                st.success(f"تمت إضافة الكمية للمادة '{selected_item}' بنجاح!")
                 st.rerun()
 
 # ---------------------------------------------------------
@@ -232,7 +232,7 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                         (selected_item, "خروج", qty_out, custom_sell_price, total_amt, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), chantier, ref_num, notes))
                     conn.commit()
                     conn.close()
-                    st.success(f"تم تسجيل الخروج بنجاح بثمن بيع {custom_sell_price} DH للوحدة!")
+                    st.success("تم تسجيل الخروج بنجاح!")
                     st.rerun()
                 else:
                     st.error("الكمية المطلوبة أكبر من المتوفر في السطوك!")
@@ -277,59 +277,100 @@ elif choice == "➕ إضافة مادة جديدة":
                     conn.close()
 
 # ---------------------------------------------------------
-# 5. EDIT / DELETE ITEMS (PROTECTED BY PASSWORD)
+# 5. EDIT / DELETE ITEMS & TRANSACTIONS (PROTECTED BY PASSWORD)
 # ---------------------------------------------------------
-elif choice == "🔐 إدارة وتعديل المواد (محمي)":
-    st.subheader("🔐 صفحة محمية: تعديل أو حذف المواد (المسؤول فقط)")
+elif choice == "🔐 إدارة وتعديل المواد والحركات (محمي)":
+    st.subheader("🔐 صفحة محمية: تعديل، حذف، وإصلاح الأخطاء (المسؤول فقط)")
     
     ADMIN_PASSWORD = "admin123"
     password_input = st.text_input("أدخل كلمة سر المسؤول (Admin Password):", type="password")
     
     if password_input == ADMIN_PASSWORD:
-        st.success("مرحبا بك يا باشا، تم التحقق بنجاح.")
+        st.success("مرحبا بك يا باشا، تم التحقق بنجاح. يمكنك الآن تصحيح أي خطأ.")
         
-        conn = get_connection()
-        df_inv = pd.read_sql_query("SELECT * FROM inventory", conn)
-        conn.close()
+        tab1, tab2 = st.tabs(["🛠️ تعديل أو حذف المواد", "📜 إدارة وتصحيح الحركات السابقة"])
         
-        if not df_inv.empty:
-            selected_item = st.selectbox("اختر المادة للتعديل:", df_inv["item_name"].tolist())
-            item_row = df_inv[df_inv["item_name"] == selected_item].iloc[0]
+        # --- TAB 1: EDIT / DELETE ITEMS ---
+        with tab1:
+            conn = get_connection()
+            df_inv = pd.read_sql_query("SELECT * FROM inventory", conn)
+            conn.close()
             
-            with st.form("edit_form"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    new_min = st.number_input("تعديل حد التنبيه الأدنى:", min_value=0.0, value=float(item_row['min_limit']))
-                    new_buy = st.number_input("تعديل ثمن الشراء الافتراضي (DH):", min_value=0.0, value=float(item_row['buy_price']))
-                with col2:
-                    new_sell = st.number_input("تعديل ثمن البيع الافتراضي (DH):", min_value=0.0, value=float(item_row['sell_price']))
-                    new_unit = st.selectbox("تعديل الوحدة:", ["Sac", "Kg", "Tonne", "Unité", "m³", "Mètre"])
+            if not df_inv.empty:
+                selected_item = st.selectbox("اختر المادة للتعديل:", df_inv["item_name"].tolist(), key="inv_select")
+                item_row = df_inv[df_inv["item_name"] == selected_item].iloc[0]
                 
-                if st.form_submit_button("✏️ تحديث البيانات"):
+                with st.form("edit_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_min = st.number_input("تعديل حد التنبيه الأدنى:", min_value=0.0, value=float(item_row['min_limit']))
+                        new_buy = st.number_input("تعديل ثمن الشراء الافتراضي (DH):", min_value=0.0, value=float(item_row['buy_price']))
+                    with col2:
+                        new_sell = st.number_input("تعديل ثمن البيع الافتراضي (DH):", min_value=0.0, value=float(item_row['sell_price']))
+                        new_unit = st.selectbox("تعديل الوحدة:", ["Sac", "Kg", "Tonne", "Unité", "m³", "Mètre"])
+                    
+                    if st.form_submit_button("✏️ تحديث بيانات المادة"):
+                        conn = get_connection()
+                        c = conn.cursor()
+                        c.execute("""
+                            UPDATE inventory 
+                            SET min_limit=?, buy_price=?, sell_price=?, unit=? 
+                            WHERE item_name=?
+                        """, (new_min, new_buy, new_sell, new_unit, selected_item))
+                        conn.commit()
+                        conn.close()
+                        st.success("تم تحديث المادة بنجاح!")
+                        st.rerun()
+
+                st.write("---")
+                if st.button(f"🗑️ حذف المادة '{selected_item}' نهائياً من القائمة"):
                     conn = get_connection()
                     c = conn.cursor()
-                    c.execute("""
-                        UPDATE inventory 
-                        SET min_limit=?, buy_price=?, sell_price=?, unit=? 
-                        WHERE item_name=?
-                    """, (new_min, new_buy, new_sell, new_unit, selected_item))
+                    c.execute("DELETE FROM inventory WHERE item_name=?", (selected_item,))
                     conn.commit()
                     conn.close()
-                    st.success("تم التحديث بنجاح!")
+                    st.warning("تم حذف المادة بنجاح!")
                     st.rerun()
+            else:
+                st.info("لا توجد مواد في المخزون للتعديل.")
 
-            st.write("---")
-            st.subheader("❌ منطقة الخطر")
-            if st.button(f"🗑️ حذف المادة '{selected_item}' نهائياً"):
-                conn = get_connection()
-                c = conn.cursor()
-                c.execute("DELETE FROM inventory WHERE item_name=?", (selected_item,))
-                conn.commit()
-                conn.close()
-                st.warning("تم الحذف بنجاح!")
-                st.rerun()
-        else:
-            st.info("لا توجد مواد في المخزون للتعديل.")
+        # --- TAB 2: EDIT / DELETE TRANSACTIONS (إصلاح الحركات) ---
+        with tab2:
+            st.write("هنا يمكنك مراجعة آخر الحركات، وفي حالة وجود خطأ يمكنك **حذف الحركة** أو تعديلها:")
+            conn = get_connection()
+            df_trans = pd.read_sql_query("SELECT * FROM transactions ORDER BY id DESC", conn)
+            conn.close()
+            
+            if not df_trans.empty:
+                # عرض قائمة مختصرة لاختيار الحركة المراد تعديلها أو حذفها
+                trans_options = [f"ID: {row['id']} | {row['date']} | {row['type']} | {row['item_name']} | كمية: {row['quantity']}" for index, row in df_trans.iterrows()]
+                selected_trans_str = st.selectbox("اختر الحركة التي تريد إصلاحها أو حذفها:", trans_options)
+                
+                if selected_trans_str:
+                    trans_id = int(selected_trans_str.split("|")[0].replace("ID:", "").strip())
+                    trans_row = df_trans[df_trans['id'] == trans_id].iloc[0]
+                    
+                    st.info(f"تفاصيل الحركة المختارة: المادة (**{trans_row['item_name']}**) | النوع: **{trans_row['type']}** | الكمية: **{trans_row['quantity']}**")
+                    
+                    col_del, col_info = st.columns([1, 2])
+                    with col_del:
+                        if st.button("🗑️ حذف هذه الحركة كلياً وتصحيح السطوك"):
+                            conn = get_connection()
+                            c = conn.cursor()
+                            # إذا كانت الحركة دخول، ننقص الكمية من السطوك. وإذا كانت خروج، نرجعها للسطوك.
+                            if trans_row['type'] == 'دخول':
+                                c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (trans_row['quantity'], trans_row['item_name']))
+                            else:
+                                c.execute("UPDATE inventory SET quantity = quantity + ? WHERE item_name = ?", (trans_row['quantity'], trans_row['item_name']))
+                            
+                            # حذف الحركة من جدول الحركات
+                            c.execute("DELETE FROM transactions WHERE id = ?", (trans_id,))
+                            conn.commit()
+                            conn.close()
+                            st.success("تم حذف الحركة وإرجاع الأمور لنصابها في السطوك بنجاح!")
+                            st.rerun()
+            else:
+                st.info("لا توجد أي حركات مسجلة لتصحيحها.")
             
     elif password_input != "":
         st.error("❌ كلمة السر غير صحيحة!")
@@ -346,10 +387,8 @@ elif choice == "📜 السجل والتقارير":
     conn.close()
     
     if not df_trans.empty:
-        # استخراج التاريخ فقط (بدون توقيت الساعات) لحساب المجموع اليومي
         df_trans['day'] = pd.to_datetime(df_trans['date']).dt.strftime('%Y-%m-%d')
         
-        # عرض الجدول بشكل منظّم ومفهوم باللغة العربية
         display_df = df_trans[['date', 'item_name', 'type', 'quantity', 'unit_price', 'total_price', 'entity', 'ref_num', 'notes']].rename(columns={
             'date': 'التاريخ والوقت',
             'item_name': 'المادة',
@@ -367,13 +406,9 @@ elif choice == "📜 السجل والتقارير":
         st.write("---")
         st.subheader("📅 ملخص المجاميع المالية حسب الأيام")
         
-        # حساب مجموع الفلوس لكل يوم حسب نوع الحركة (دخول أو خروج)
-        # نقوم بتقسيم التاريخ إلى تاريخ فقط
         df_trans['date_only'] = pd.to_datetime(df_trans['date']).dt.date
-        
         daily_summary = df_trans.groupby(['date_only', 'type'])['total_price'].sum().unstack(fill_value=0)
         
-        # إعادة تسمية الأعمدة إن وجدت
         if 'دخول' in daily_summary.columns:
             daily_summary = daily_summary.rename(columns={'دخول': 'إجمالي المشتريات (دخول) DH'})
         if 'خروج' in daily_summary.columns:
@@ -401,7 +436,7 @@ elif choice == "📜 السجل والتقارير":
 elif choice == "💾 النسخ الاحتياطي":
     st.subheader("💾 حفظ نسخة احتياطية من قاعدة البيانات")
     try:
-        with open(DB_NAME, "rb") as fp:
+        with open(DB_Name if 'DB_Name' in locals() else DB_NAME, "rb") as fp:
             st.download_button(
                 label="📥 تحميل ملف قاعدة البيانات (.db)",
                 data=fp,

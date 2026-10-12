@@ -5,7 +5,7 @@ from datetime import datetime
 import io
 
 # ---------------------------------------------------------
-# PAGE CONFIG & STYLING
+# PAGE CONFIG & FIXED CLEAN CSS STYLING
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="نظام إدارة مخزون البناء والمشاريع",
@@ -28,6 +28,24 @@ st.markdown("""
         color: #0F172A !important;
         border-color: #CBD5E1 !important;
     }
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border-right: 6px solid #3B82F6;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 28px !important;
+        font-weight: 800;
+        color: #1E3A8A;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 14px !important;
+        color: #64748B;
+        font-weight: 600;
+    }
     .stButton>button {
         background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
         color: white !important;
@@ -35,9 +53,18 @@ st.markdown("""
         border-radius: 10px;
         border: none;
         padding: 10px 24px;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
     }
     .stButton>button:hover {
         background: linear-gradient(135deg, #1D4ED8 100%, #1E40AF 100%);
+    }
+    .stDownloadButton>button {
+        background: linear-gradient(135deg, #16A34A 0%, #15803D 100%) !important;
+        color: white !important;
+        font-weight: bold;
+        border-radius: 10px;
+        border: none;
+        padding: 10px 20px;
     }
     section[data-testid="stSidebar"] {
         background-color: #0F172A;
@@ -53,36 +80,13 @@ st.markdown("""
         border: 1px solid #E2E8F0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
-    
-    /* Big Clear Receipt Box */
-    .big-receipt {
+    .receipt-card {
         background-color: #ffffff;
-        border: 3px solid #1E3A8A;
-        padding: 35px;
-        border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        margin-top: 20px;
-        color: #0F172A;
-    }
-    .receipt-header {
-        text-align: center;
-        border-bottom: 3px solid #1E3A8A;
-        padding-bottom: 15px;
-        margin-bottom: 25px;
-    }
-    .highlight-box {
-        background-color: #F1F5F9;
-        padding: 20px;
+        border: 2px solid #0F172A;
+        padding: 30px;
         border-radius: 12px;
-        border-right: 6px solid #2563EB;
-        margin-bottom: 25px;
-        font-size: 18px;
-    }
-    .total-price-tag {
-        font-size: 26px;
-        color: #16A34A;
-        font-weight: bold;
-        text-align: left;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-top: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -242,11 +246,11 @@ elif choice == "📥 تسجيل دخول سلعة":
                 st.rerun()
 
 # ---------------------------------------------------------
-# 3. SORTIE / CHANTIER (WITH BIG CLEAR BON DE LIVRAISON)
+# 3. SORTIE / CHANTIER (WITH CLEAN STREAMLIT BON DE LIVRAISON)
 # ---------------------------------------------------------
 elif choice == "📤 تسجيل خروج سلعة للورش":
     st.subheader("📤 تسجيل خروج سلعة إلى ورش البناء (Chantier)")
-    st.markdown("<p style='color: #64748B;'>حدد الكمية وثمن البيع لاستخراج وصل تسليم واضح وبارز فوراً.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B;'>حدد الكمية الخارجة وثمن البيع لاستخراج وصل التسليم فوراً.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -290,65 +294,54 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                 conn.commit()
                 conn.close()
                 
-                st.success("✅ تم تسجيل خروج السلعة بنجاح! إليك وصل التسليم الواضح:")
+                st.success("✅ تم تسجيل خروج السلعة بنجاح! إليك وصل التسليم:")
                 
-                # Big Clear Receipt Card
+                # Clean Streamlit UI Bon de Livraison Card
                 st.markdown(f"""
-                <div class="big-receipt">
-                    <div class="receipt-header">
-                        <h1 style='color: #1E3A8A; margin: 0; font-size: 28px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h1>
-                        <p style='color: #64748B; font-size: 16px; margin: 5px 0 0 0;'>شركة مواد البناء والخدمات</p>
+                <div class="receipt-card">
+                    <h2 style='text-align: center; color: #1E3A8A; margin-bottom: 5px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h2>
+                    <p style='text-align: center; color: #64748B; font-size: 14px;'>شركة مواد البناء والخدمات</p>
+                    <hr style='border: 1px solid #CBD5E1;'>
+                    <div style='display: flex; justify-content: space-between; margin-bottom: 15px;'>
+                        <div><b>رقم البون:</b> #{last_id}</div>
+                        <div><b>التاريخ:</b> {current_time}</div>
                     </div>
-                    
-                    <div style='display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 20px; font-weight: bold;'>
-                        <div>📌 رقم البون الداخلي: #{last_id}</div>
-                        <div>📅 التاريخ: {current_time}</div>
+                    <div style='background-color: #F8FAFC; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #E2E8F0;'>
+                        <p style='margin: 0 0 5px 0;'>🏢 <b>الورشة / الزبون:</b> {chantier if chantier else 'غير محدد'}</p>
+                        <p style='margin: 0 0 5px 0;'>📌 <b>رقم بون الخروج:</b> {ref_num if ref_num else '—'}</p>
+                        <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> {notes if notes else '—'}</p>
                     </div>
-                    
-                    <div class="highlight-box">
-                        <p style='margin: 0 0 10px 0;'>🏢 <b>اسم الورشة / الزبون:</b> <span style='color: #1E3A8A; font-size: 20px;'>{chantier if chantier else 'غير محدد'}</span></p>
-                        <p style='margin: 0 0 10px 0;'>🔖 <b>رقم بون الخروج:</b> <span style='font-size: 18px;'>{ref_num if ref_num else '—'}</span></p>
-                        <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> <span style='font-size: 18px;'>{notes if notes else '—'}</span></p>
-                    </div>
-                    
-                    <h3 style='color: #0F172A; margin-bottom: 10px;'>📦 تفاصيل السلعة المسلمة:</h3>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Big Clear Table for Items
+                # Table Data for Receipt
                 df_receipt = pd.DataFrame([{
-                    "المادة (Désignation)": selected_item,
-                    "الكمية (Quantité)": f"{qty_out}",
-                    "ثمن الوحدة (Prix Unit)": f"{custom_sell_price:,.2f} DH",
-                    "المبلغ الإجمالي (Total)": f"{total_amt:,.2f} DH"
+                    "المادة": selected_item,
+                    "الكمية": qty_out,
+                    "ثمن الوحدة (DH)": f"{custom_sell_price:,.2f}",
+                    "المبلغ الإجمالي (DH)": f"{total_amt:,.2f}"
                 }])
                 st.dataframe(df_receipt, use_container_width=True, hide_index=True)
                 
-                st.markdown(f"""
-                <div class="big-receipt" style="margin-top: 10px; padding: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 22px; font-weight: bold;">المجموع الإجمالي للواجب دفعه:</span>
-                        <span class="total-price-tag">{total_amt:,.2f} DH</span>
-                    </div>
-                    
-                    <div style='display: flex; justify-content: space-between; margin-top: 40px; font-size: 16px; font-weight: bold;'>
-                        <div>توقيع وخاتم الشركة: <br><br>........................................</div>
-                        <div>توقيع المسؤول / المستلم: <br><br>........................................</div>
-                    </div>
+                st.markdown("""
+                <div style='display: flex; justify-content: space-between; margin-top: 30px; font-weight: bold;'>
+                    <div>توقيع وخاتم الشركة: ........................</div>
+                    <div>توقيع المسؤول / المستلم: ........................</div>
+                </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 st.write("")
-                st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في Mac) واطبع الوصل بكل وضوح.")
+                st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في Mac).")
             else:
                 st.error("الكمية المطلوبة أكبر من المتوفر في السطوك!")
 
 # ---------------------------------------------------------
-# 4. BON DE LIVRAISON (ARCHIVE)
+# 4. BON DE LIVRAISON (PRINT & EXPORT ARCHIVE)
 # ---------------------------------------------------------
 elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
     st.subheader("🖨️ أرشيف وربط وصولات التسليم (Bon de Livraison)")
-    st.markdown("<p style='color: #64748B;'>اختر أي عملية خروج سابقة لاستخراج وصل تسليم واضح وكبير.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B;'>اختر أي عملية خروج سابقة لاستخراج وصل التسليم الخاص بها.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -369,46 +362,34 @@ elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
             st.markdown("### 📄 معاينة وصل التسليم")
             
             st.markdown(f"""
-            <div class="big-receipt">
-                <div class="receipt-header">
-                    <h1 style='color: #1E3A8A; margin: 0; font-size: 28px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h1>
-                    <p style='color: #64748B; font-size: 16px; margin: 5px 0 0 0;'>شركة مواد البناء والخدمات</p>
+            <div class="receipt-card">
+                <h2 style='text-align: center; color: #1E3A8A; margin-bottom: 5px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h2>
+                <p style='text-align: center; color: #64748B; font-size: 14px;'>شركة مواد البناء والخدمات</p>
+                <hr style='border: 1px solid #CBD5E1;'>
+                <div style='display: flex; justify-content: space-between; margin-bottom: 15px;'>
+                    <div><b>رقم البون:</b> #{trans_row['id']}</div>
+                    <div><b>التاريخ:</b> {trans_row['date']}</div>
                 </div>
-                
-                <div style='display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 20px; font-weight: bold;'>
-                    <div>📌 رقم البون الداخلي: #{trans_row['id']}</div>
-                    <div>📅 التاريخ: {trans_row['date']}</div>
+                <div style='background-color: #F8FAFC; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #E2E8F0;'>
+                    <p style='margin: 0 0 5px 0;'>🏢 <b>الورشة / الزبون:</b> {trans_row['entity'] if trans_row['entity'] else 'غير محدد'}</p>
+                    <p style='margin: 0 0 5px 0;'>📌 <b>رقم بون الخروج:</b> {trans_row['ref_num'] if trans_row['ref_num'] else '—'}</p>
+                    <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> {trans_row['notes'] if trans_row['notes'] else '—'}</p>
                 </div>
-                
-                <div class="highlight-box">
-                    <p style='margin: 0 0 10px 0;'>🏢 <b>اسم الورشة / الزبون:</b> <span style='color: #1E3A8A; font-size: 20px;'>{trans_row['entity'] if trans_row['entity'] else 'غير محدد'}</span></p>
-                    <p style='margin: 0 0 10px 0;'>🔖 <b>رقم بون الخروج:</b> <span style='font-size: 18px;'>{trans_row['ref_num'] if trans_row['ref_num'] else '—'}</span></p>
-                    <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> <span style='font-size: 18px;'>{trans_row['notes'] if trans_row['notes'] else '—'}</span></p>
-                </div>
-                
-                <h3 style='color: #0F172A; margin-bottom: 10px;'>📦 تفاصيل السلعة المسلمة:</h3>
             </div>
             """, unsafe_allow_html=True)
             
             df_receipt_arch = pd.DataFrame([{
-                "المادة (Désignation)": trans_row['item_name'],
-                "الكمية (Quantité)": f"{trans_row['quantity']}",
-                "ثمن الوحدة (Prix Unit)": f"{trans_row['unit_price']:,.2f} DH",
-                "المبلغ الإجمالي (Total)": f"{trans_row['total_price']:,.2f} DH"
+                "المادة": trans_row['item_name'],
+                "الكمية": trans_row['quantity'],
+                "ثمن الوحدة (DH)": f"{trans_row['unit_price']:,.2f}",
+                "المبلغ الإجمالي (DH)": f"{trans_row['total_price']:,.2f}"
             }])
             st.dataframe(df_receipt_arch, use_container_width=True, hide_index=True)
             
-            st.markdown(f"""
-            <div class="big-receipt" style="margin-top: 10px; padding: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 22px; font-weight: bold;">المجموع الإجمالي للواجب دفعه:</span>
-                    <span class="total-price-tag">{trans_row['total_price']:,.2f} DH</span>
-                </div>
-                
-                <div style='display: flex; justify-content: space-between; margin-top: 40px; font-size: 16px; font-weight: bold;'>
-                    <div>توقيع وخاتم الشركة: <br><br>........................................</div>
-                    <div>توقيع المسؤول / المستلم: <br><br>........................................</div>
-                </div>
+            st.markdown("""
+            <div style='display: flex; justify-content: space-between; margin-top: 30px; font-weight: bold;'>
+                <div>توقيع وخاتم الشركة: ........................</div>
+                <div>توقيع المسؤول / المستلم: ........................</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -627,7 +608,7 @@ elif choice == "💾 النسخ الاحتياطي":
                 label="📥 تحميل ملف قاعدة البيانات (.db)",
                 data=fp,
                 file_name=f"stock_batimen_backup_{datetime.now().strftime('%Y_%m_%d')}.db",
-                mime="application/x-sqlite3",
+                mime="application/x-sqlite3"
             )
     except FileNotFoundError:
         st.error("لم يتم العثور على قاعدة البيانات بعد.")

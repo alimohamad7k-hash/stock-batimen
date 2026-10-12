@@ -95,6 +95,16 @@ st.markdown("""
         border: 1px solid #E2E8F0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
+    
+    /* Printable Receipt Card Style */
+    .receipt-box {
+        background-color: #ffffff;
+        border: 2px solid #0F172A;
+        padding: 25px;
+        border-radius: 8px;
+        color: #000000;
+        font-family: Arial, sans-serif;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -150,6 +160,7 @@ menu = [
     "📊 لوحة التحكم", 
     "📥 تسجيل دخول سلعة", 
     "📤 تسجيل خروج سلعة للورش", 
+    "🖨️ طباعة وصل التسليم (Bon de Livraison)",
     "➕ إضافة مادة جديدة",
     "🔐 إدارة وتعديل المواد والحركات (محمي)",
     "📜 السجل والتقارير",
@@ -293,13 +304,101 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                         (selected_item, "خروج", qty_out, custom_sell_price, total_amt, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), chantier, ref_num, notes))
                     conn.commit()
                     conn.close()
-                    st.success("تم تسجيل الخروج بنجاح!")
+                    st.success("تم تسجيل الخروج بنجاح! يمكنك الانتقال لصفحة 'طباعة وصل التسليم' لاستخراج الوصل.")
                     st.rerun()
                 else:
                     st.error("الكمية المطلوبة أكبر من المتوفر في السطوك!")
 
 # ---------------------------------------------------------
-# 4. ADD ITEM
+# 4. BON DE LIVRAISON (PRINT & EXPORT)
+# ---------------------------------------------------------
+elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
+    st.subheader("🖨️ إصدار وطباعة وصل التسليم (Bon de Livraison)")
+    st.markdown("<p style='color: #64748B;'>اختر إحدى عمليات الخروج لإصدار وصل تسليم جاهز للطباعة أو الحفظ.</p>", unsafe_allow_html=True)
+    st.write("")
+    
+    conn = get_connection()
+    df_out = pd.read_sql_query("SELECT * FROM transactions WHERE type='خروج' ORDER BY id DESC", conn)
+    conn.close()
+    
+    if df_out.empty:
+        st.info("لا توجد أي عمليات خروج مسجلة حتى الآن لاستخراج وصل التسليم.")
+    else:
+        out_options = [f"N° {row['id']} | {row['date']} | الورش/الزبون: {row['entity']} | المادة: {row['item_name']}" for _, row in df_out.iterrows()]
+        selected_out_str = st.selectbox("اختر العملية المستهدفة:", out_options)
+        
+        if selected_out_str:
+            selected_id = int(selected_out_str.split("|")[0].replace("N°", "").strip())
+            trans_row = df_out[df_out['id'] == selected_id].iloc[0]
+            
+            st.write("---")
+            st.markdown("### 📄 معاينة وصل التسليم (Bon de Livraison)")
+            
+            # HTML Template for Printable Bon de Livraison
+            html_bon = f"""
+            <div class="receipt-box" id="print-area">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="margin: 0; color: #0F172A;">شركة مواد البناء والخدمات</h2>
+                        <p style="margin: 5px 0 0 0; font-size: 14px;">Société de Matériaux de Construction</p>
+                    </div>
+                    <div style="text-align: left;">
+                        <h3 style="margin: 0; color: #2563EB;">BON DE LIVRAISON</h3>
+                        <p style="margin: 5px 0 0 0; font-size: 14px;"><b>N° BL:</b> #{trans_row['id']}</p>
+                        <p style="margin: 0; font-size: 14px;"><b>التاريخ:</b> {trans_row['date']}</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <div>
+                        <p style="margin: 0;"><b>العميل / الورش (Client/Chantier):</b> {trans_row['entity'] if trans_row['entity'] else 'غير محدد'}</p>
+                        <p style="margin: 5px 0 0 0;"><b>رقم إذن الخروج:</b> {trans_row['ref_num'] if trans_row['ref_num'] else '—'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0;"><b>الملاحظات / السائق:</b> {trans_row['notes'] if trans_row['notes'] else '—'}</p>
+                    </div>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; text-align: center;">
+                    <thead>
+                        <tr style="background-color: #F1F5F9; border: 1px solid #000;">
+                            <th style="padding: 10px; border: 1px solid #000;">المادة (Désignation)</th>
+                            <th style="padding: 10px; border: 1px solid #000;">الكمية (Quantité)</th>
+                            <th style="padding: 10px; border: 1px solid #000;">ثمن الوحدة (Prix Unitaire)</th>
+                            <th style="padding: 10px; border: 1px solid #000;">المبلغ الإجمالي (Total)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #000;"><b>{trans_row['item_name']}</b></td>
+                            <td style="padding: 12px; border: 1px solid #000;"><b>{trans_row['quantity']}</b></td>
+                            <td style="padding: 12px; border: 1px solid #000;">{trans_row['unit_price']:,.2f} DH</td>
+                            <td style="padding: 12px; border: 1px solid #000;"><b>{trans_row['total_price']:,.2f} DH</b></td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 10px;">
+                    <div style="text-align: center; width: 40%;">
+                        <p><b>توقيع وخاتم الشركة</b></p>
+                        <br><br>
+                        <p>____________________</p>
+                    </div>
+                    <div style="text-align: center; width: 40%;">
+                        <p><b>توقيع المستلم (Client / Chantier)</b></p>
+                        <br><br>
+                        <p>____________________</p>
+                    </div>
+                </div>
+            </div>
+            """
+            
+            st.markdown(html_bon, unsafe_allow_html=True)
+            st.write("")
+            st.info("💡 للطباعة: يمكنك الضغط على **Ctrl + P** (أو Cmd + P على Mac) واختيار Print للطباعة المباشرة أو حفظ الوصل كـ PDF.")
+
+# ---------------------------------------------------------
+# 5. ADD ITEM
 # ---------------------------------------------------------
 elif choice == "➕ إضافة مادة جديدة":
     st.subheader("➕ إضافة مادة بناء جديدة للقائمة")
@@ -342,7 +441,7 @@ elif choice == "➕ إضافة مادة جديدة":
                     conn.close()
 
 # ---------------------------------------------------------
-# 5. EDIT / DELETE ITEMS & TRANSACTIONS (PROTECTED BY PASSWORD)
+# 6. EDIT / DELETE ITEMS & TRANSACTIONS (PROTECTED BY PASSWORD)
 # ---------------------------------------------------------
 elif choice == "🔐 إدارة وتعديل المواد والحركات (محمي)":
     st.subheader("🔐 صفحة محمية: إدارة، تعديل، وتصحيح الأخطاء")
@@ -438,7 +537,7 @@ elif choice == "🔐 إدارة وتعديل المواد والحركات (مح
         st.error("❌ كلمة السر غير صحيحة!")
 
 # ---------------------------------------------------------
-# 6. HISTORIQUE & EXCEL
+# 7. HISTORIQUE & EXCEL
 # ---------------------------------------------------------
 elif choice == "📜 السجل والتقارير":
     st.subheader("📜 تاريخ الحركات ومجموع المبالغ اليومية")
@@ -497,7 +596,7 @@ elif choice == "📜 السجل والتقارير":
         st.info("لا توجد أي حركات مسجلة حتى الآن.")
 
 # ---------------------------------------------------------
-# 7. BACKUP DATABASE
+# 8. BACKUP DATABASE
 # ---------------------------------------------------------
 elif choice == "💾 النسخ الاحتياطي":
     st.subheader("💾 حفظ نسخة احتياطية من قاعدة البيانات")

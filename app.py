@@ -5,7 +5,7 @@ from datetime import datetime
 import io
 
 # ---------------------------------------------------------
-# PAGE CONFIG & PREMIUM MODERN CSS STYLING
+# PAGE CONFIG & FIXED CLEAN CSS STYLING
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="نظام إدارة مخزون البناء والمشاريع",
@@ -27,19 +27,21 @@ st.markdown("""
         font-weight: 700;
     }
     
+    /* Fix Input Fields Dark Background Issue */
+    div[data-baseweb="select"] > div, input[type="text"], input[type="number"], textarea {
+        background-color: #FFFFFF !important;
+        color: #0F172A !important;
+        border-color: #CBD5E1 !important;
+    }
+    
     /* Modern Metrics Cards */
     [data-testid="stMetric"] {
         background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
         padding: 20px;
         border-radius: 16px;
         border: 1px solid #E2E8F0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         border-right: 6px solid #3B82F6;
-        transition: transform 0.2s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
     }
     [data-testid="stMetricValue"] {
         font-size: 28px !important;
@@ -61,12 +63,9 @@ st.markdown("""
         border: none;
         padding: 10px 24px;
         box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
-        transition: all 0.3s ease;
     }
     .stButton>button:hover {
         background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
-        box-shadow: 0 6px 8px rgba(37, 99, 235, 0.3);
-        transform: translateY(-1px);
     }
 
     /* Download Excel Buttons */
@@ -77,10 +76,6 @@ st.markdown("""
         border-radius: 10px;
         border: none;
         padding: 10px 20px;
-        box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2);
-    }
-    .stDownloadButton>button:hover {
-        background: linear-gradient(135deg, #15803D 0%, #166534 100%) !important;
     }
 
     /* Sidebar Styling */
@@ -99,14 +94,6 @@ st.markdown("""
         border-radius: 16px;
         border: 1px solid #E2E8F0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-    }
-    
-    /* Dataframes Styling */
-    [data-testid="stDataFrame"] {
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -220,7 +207,7 @@ if choice == "📊 لوحة التحكم":
         })
         st.dataframe(display_df.drop(columns=['id']), use_container_width=True)
     else:
-        st.info("💡 لا توجد مواد مسجلة حتى الآن في النظام. ابدأ بإضافة مواد جديدة من القائمة الجانبية.")
+        st.info("💡 لا توجد مواد مسجلة حتى الآن في النظام.")
 
 # ---------------------------------------------------------
 # 2. ENTRÉE / RÉCEPTION

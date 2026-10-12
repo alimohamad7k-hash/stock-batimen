@@ -83,10 +83,11 @@ st.markdown("""
     .receipt-box {
         background-color: #ffffff;
         border: 2px solid #0F172A;
-        padding: 25px;
-        border-radius: 8px;
+        padding: 30px;
+        border-radius: 10px;
         color: #000000;
         font-family: Arial, sans-serif;
+        margin-top: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -246,11 +247,11 @@ elif choice == "📥 تسجيل دخول سلعة":
                 st.rerun()
 
 # ---------------------------------------------------------
-# 3. SORTIE / CHANTIER
+# 3. SORTIE / CHANTIER (WITH AUTOMATIC BL GENERATION)
 # ---------------------------------------------------------
 elif choice == "📤 تسجيل خروج سلعة للورش":
     st.subheader("📤 تسجيل خروج سلعة إلى ورش البناء (Chantier)")
-    st.markdown("<p style='color: #64748B;'>حدد الكمية الخارجة وثمن البيع المخصص لكل ورش أو زبون.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B;'>حدد الكمية الخارجة وثمن البيع المخصص لكل ورش أو زبون لاستخراج وصل التسليم فوراً.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -268,36 +269,103 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                 default_sell = float(item_row_data['sell_price'])
                 st.info(f"المتوفر حالياً: **{item_row_data['quantity']} {item_row_data['unit']}**")
                 qty_out = st.number_input("الكمية الخارجة:", min_value=0.1, value=1.0)
-                custom_sell_price = st.number_input("ثمن البيع لهذا الزبون / الورش (DH):", min_value=0.0, value=default_sell)
+                custom_sell_price = st.number_input("ثمن البيع للوحدة (DH):", min_value=0.0, value=default_sell)
             with col2:
-                chantier = st.text_input("اسم الورش أو الزبون (Client / Chantier):")
-                ref_num = st.text_input("رقم إذن الخروج (Bon de sortie):")
-                notes = st.text_input("ملاحظات (اسم السائق / المسؤول):")
+                chantier = st.text_input("اسم الورشة أو الزبون (Client / Chantier):")
+                ref_num = st.text_input("رقم بون الخروج (N° Bon):")
+                notes = st.text_input("المسؤول أو السائق (Responsable / Notes):")
             
             st.write("")
-            if st.form_submit_button("🚀 تأكيد الخروج"):
-                if item_row_data['quantity'] >= qty_out:
-                    total_amt = qty_out * custom_sell_price
-                    conn = get_connection()
-                    c = conn.cursor()
-                    c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (qty_out, selected_item))
-                    c.execute("""
-                        INSERT INTO transactions (item_name, type, quantity, unit_price, total_price, date, entity, ref_num, notes) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (selected_item, "خروج", qty_out, custom_sell_price, total_amt, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), chantier, ref_num, notes))
-                    conn.commit()
-                    conn.close()
-                    st.success("تم تسجيل الخروج بنجاح!")
-                    st.rerun()
-                else:
-                    st.error("الكمية المطلوبة أكبر من المتوفر في السطوك!")
+            submit_out = st.form_submit_button("🚀 تأكيد الخروج وإصدار البون")
+            
+        if submit_out:
+            if item_row_data['quantity'] >= qty_out:
+                total_amt = qty_out * custom_sell_price
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                conn = get_connection()
+                c = conn.cursor()
+                c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (qty_out, selected_item))
+                c.execute("""
+                    INSERT INTO transactions (item_name, type, quantity, unit_price, total_price, date, entity, ref_num, notes) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (selected_item, "خروج", qty_out, custom_sell_price, total_amt, current_time, chantier, ref_num, notes))
+                
+                # جلب الـ ID ديال آخر عملية تم إدخالها للتو لطباعة البون الخاص بها
+                last_id = c.lastrowid
+                conn.commit()
+                conn.close()
+                
+                st.success("✅ تم تسجيل خروج السلعة بنجاح! إليك وصل التسليم الخاص بهذه العملية:")
+                
+                # عرض وصل التسليم مباشرة
+                html_bon = f"""
+                <div class="receipt-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0F172A; padding-bottom: 15px; margin-bottom: 25px;">
+                        <div>
+                            <h2 style="margin: 0; color: #0F172A; font-size: 22px;">شركة مواد البناء والخدمات</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748B;">Société de Matériaux de Construction</p>
+                        </div>
+                        <div style="text-align: left;">
+                            <h3 style="margin: 0; color: #2563EB; font-size: 20px;">BON DE LIVRAISON</h3>
+                            <p style="margin: 5px 0 0 0; font-size: 14px;"><b>رقم البون الداخلي (ID):</b> #{last_id}</p>
+                            <p style="margin: 3px 0 0 0; font-size: 14px;"><b>التاريخ:</b> {current_time}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; background-color: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #E2E8F0;">
+                        <div>
+                            <p style="margin: 0 0 8px 0; font-size: 15px;">🏢 <b>اسم الورشة / الزبون:</b> <span style="color: #1E3A8A;">{chantier if chantier else 'غير محدد'}</span></p>
+                            <p style="margin: 0; font-size: 15px;">📌 <b>رقم بون الخروج:</b> {ref_num if ref_num else '—'}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0; font-size: 15px;">👤 <b>المسؤول / السائق:</b> <span style="color: #1E3A8A;">{notes if notes else '—'}</span></p>
+                        </div>
+                    </div>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; text-align: center;">
+                        <thead>
+                            <tr style="background-color: #1E3A8A; color: white;">
+                                <th style="padding: 12px; border: 1px solid #CBD5E1;">المادة (Désignation)</th>
+                                <th style="padding: 12px; border: 1px solid #CBD5E1;">الكمية (Quantité)</th>
+                                <th style="padding: 12px; border: 1px solid #CBD5E1;">ثمن البيع للوحدة (Prix Unitaire)</th>
+                                <th style="padding: 12px; border: 1px solid #CBD5E1;">المبلغ الإجمالي (Total)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 14px; border: 1px solid #CBD5E1;"><b>{selected_item}</b></td>
+                                <td style="padding: 14px; border: 1px solid #CBD5E1;"><b>{qty_out}</b></td>
+                                <td style="padding: 14px; border: 1px solid #CBD5E1;">{custom_sell_price:,.2f} DH</td>
+                                <td style="padding: 14px; border: 1px solid #CBD5E1; color: #16A34A; font-weight: bold;">{total_amt:,.2f} DH</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="display: flex; justify-content: space-between; margin-top: 50px; padding-top: 20px; border-top: 1px dashed #CBD5E1;">
+                        <div style="text-align: center; width: 40%;">
+                            <p style="margin-bottom: 40px;"><b>توقيع وخاتم الشركة</b></p>
+                            <p>________________________________</p>
+                        </div>
+                        <div style="text-align: center; width: 40%;">
+                            <p style="margin-bottom: 40px;"><b>توقيع المسؤول / المستلم</b></p>
+                            <p>________________________________</p>
+                        </div>
+                    </div>
+                </div>
+                """
+                st.markdown(html_bon, unsafe_allow_html=True)
+                st.write("")
+                st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في Mac) واطبع الوصل.")
+            else:
+                st.error("الكمية المطلوبة أكبر من المتوفر في السطوك!")
 
 # ---------------------------------------------------------
-# 4. BON DE LIVRAISON (PRINT & EXPORT)
+# 4. BON DE LIVRAISON (PRINT & EXPORT ARCHIVE)
 # ---------------------------------------------------------
 elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
-    st.subheader("🖨️ إصدار وطباعة وصل التسليم (Bon de Livraison)")
-    st.markdown("<p style='color: #64748B;'>اختر إحدى عمليات الخروج لإصدار وصل تسليم جاهز للطباعة أو الحفظ.</p>", unsafe_allow_html=True)
+    st.subheader("🖨️ أرشيف وربط وصولات التسليم (Bon de Livraison)")
+    st.markdown("<p style='color: #64748B;'>اختر أي عملية خروج سابقة لاستخراج وصل التسليم الخاص بها.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -305,80 +373,76 @@ elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
     conn.close()
     
     if df_out.empty:
-        st.info("لا توجد أي عمليات خروج مسجلة حتى الآن لاستخراج وصل التسليم.")
+        st.info("لا توجد أي عمليات خروج مسجلة حتى الآن.")
     else:
-        out_options = [f"N° {row['id']} | {row['date']} | الورش/الزبون: {row['entity']} | المادة: {row['item_name']}" for _, row in df_out.iterrows()]
-        selected_out_str = st.selectbox("اختر العملية المستهدفة:", out_options)
+        out_options = [f"عملية ID: {row['id']} | التاريخ: {row['date']} | الورش: {row['entity']} | المادة: {row['item_name']}" for _, row in df_out.iterrows()]
+        selected_out_str = st.selectbox("اختر العملية المراد استخراج وصل لها:", out_options)
         
         if selected_out_str:
-            selected_id = int(selected_out_str.split("|")[0].replace("N°", "").strip())
+            selected_id = int(selected_out_str.split("|")[0].replace("عملية ID:", "").strip())
             trans_row = df_out[df_out['id'] == selected_id].iloc[0]
             
             st.write("---")
-            st.markdown("### 📄 معاينة وصل التسليم (Bon de Livraison)")
+            st.markdown("### 📄 معاينة وصل التسليم")
             
-            # HTML Template for Printable Bon de Livraison
             html_bon = f"""
-            <div class="receipt-box" id="print-area">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+            <div class="receipt-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0F172A; padding-bottom: 15px; margin-bottom: 25px;">
                     <div>
-                        <h2 style="margin: 0; color: #0F172A;">شركة مواد البناء والخدمات</h2>
-                        <p style="margin: 5px 0 0 0; font-size: 14px;">Société de Matériaux de Construction</p>
+                        <h2 style="margin: 0; color: #0F172A; font-size: 22px;">شركة مواد البناء والخدمات</h2>
+                        <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748B;">Société de Matériaux de Construction</p>
                     </div>
                     <div style="text-align: left;">
-                        <h3 style="margin: 0; color: #2563EB;">BON DE LIVRAISON</h3>
-                        <p style="margin: 5px 0 0 0; font-size: 14px;"><b>N° BL:</b> #{trans_row['id']}</p>
-                        <p style="margin: 0; font-size: 14px;"><b>التاريخ:</b> {trans_row['date']}</p>
+                        <h3 style="margin: 0; color: #2563EB; font-size: 20px;">BON DE LIVRAISON</h3>
+                        <p style="margin: 5px 0 0 0; font-size: 14px;"><b>رقم البون الداخلي (ID):</b> #{trans_row['id']}</p>
+                        <p style="margin: 3px 0 0 0; font-size: 14px;"><b>التاريخ:</b> {trans_row['date']}</p>
                     </div>
                 </div>
                 
-                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; background-color: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #E2E8F0;">
                     <div>
-                        <p style="margin: 0;"><b>العميل / الورش (Client/Chantier):</b> {trans_row['entity'] if trans_row['entity'] else 'غير محدد'}</p>
-                        <p style="margin: 5px 0 0 0;"><b>رقم إذن الخروج:</b> {trans_row['ref_num'] if trans_row['ref_num'] else '—'}</p>
+                        <p style="margin: 0 0 8px 0; font-size: 15px;">🏢 <b>اسم الورشة / الزبون:</b> <span style="color: #1E3A8A;">{trans_row['entity'] if trans_row['entity'] else 'غير محدد'}</span></p>
+                        <p style="margin: 0; font-size: 15px;">📌 <b>رقم بون الخروج:</b> {trans_row['ref_num'] if trans_row['ref_num'] else '—'}</p>
                     </div>
                     <div>
-                        <p style="margin: 0;"><b>الملاحظات / السائق:</b> {trans_row['notes'] if trans_row['notes'] else '—'}</p>
+                        <p style="margin: 0; font-size: 15px;">👤 <b>المسؤول / السائق:</b> <span style="color: #1E3A8A;">{trans_row['notes'] if trans_row['notes'] else '—'}</span></p>
                     </div>
                 </div>
                 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; text-align: center;">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; text-align: center;">
                     <thead>
-                        <tr style="background-color: #F1F5F9; border: 1px solid #000;">
-                            <th style="padding: 10px; border: 1px solid #000;">المادة (Désignation)</th>
-                            <th style="padding: 10px; border: 1px solid #000;">الكمية (Quantité)</th>
-                            <th style="padding: 10px; border: 1px solid #000;">ثمن الوحدة (Prix Unitaire)</th>
-                            <th style="padding: 10px; border: 1px solid #000;">المبلغ الإجمالي (Total)</th>
+                        <tr style="background-color: #1E3A8A; color: white;">
+                            <th style="padding: 12px; border: 1px solid #CBD5E1;">المادة (Désignation)</th>
+                            <th style="padding: 12px; border: 1px solid #CBD5E1;">الكمية (Quantité)</th>
+                            <th style="padding: 12px; border: 1px solid #CBD5E1;">ثمن البيع للوحدة (Prix Unitaire)</th>
+                            <th style="padding: 12px; border: 1px solid #CBD5E1;">المبلغ الإجمالي (Total)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td style="padding: 12px; border: 1px solid #000;"><b>{trans_row['item_name']}</b></td>
-                            <td style="padding: 12px; border: 1px solid #000;"><b>{trans_row['quantity']}</b></td>
-                            <td style="padding: 12px; border: 1px solid #000;">{trans_row['unit_price']:,.2f} DH</td>
-                            <td style="padding: 12px; border: 1px solid #000;"><b>{trans_row['total_price']:,.2f} DH</b></td>
+                            <td style="padding: 14px; border: 1px solid #CBD5E1;"><b>{trans_row['item_name']}</b></td>
+                            <td style="padding: 14px; border: 1px solid #CBD5E1;"><b>{trans_row['quantity']}</b></td>
+                            <td style="padding: 14px; border: 1px solid #CBD5E1;">{trans_row['unit_price']:,.2f} DH</td>
+                            <td style="padding: 14px; border: 1px solid #CBD5E1; color: #16A34A; font-weight: bold;">{trans_row['total_price']:,.2f} DH</td>
                         </tr>
                     </tbody>
                 </table>
                 
-                <div style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; margin-top: 50px; padding-top: 20px; border-top: 1px dashed #CBD5E1;">
                     <div style="text-align: center; width: 40%;">
-                        <p><b>توقيع وخاتم الشركة</b></p>
-                        <br><br>
-                        <p>____________________</p>
+                        <p style="margin-bottom: 40px;"><b>توقيع وخاتم الشركة</b></p>
+                        <p>________________________________</p>
                     </div>
                     <div style="text-align: center; width: 40%;">
-                        <p><b>توقيع المستلم (Client / Chantier)</b></p>
-                        <br><br>
-                        <p>____________________</p>
+                        <p style="margin-bottom: 40px;"><b>توقيع المسؤول / المستلم</b></p>
+                        <p>________________________________</p>
                     </div>
                 </div>
             </div>
             """
-            
             st.markdown(html_bon, unsafe_allow_html=True)
             st.write("")
-            st.info("💡 للطباعة: يمكنك الضغط على **Ctrl + P** (أو Cmd + P على Mac) واختيار Print للطباعة المباشرة أو حفظ الوصل كـ PDF.")
+            st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في جهاز Mac).")
 
 # ---------------------------------------------------------
 # 5. ADD ITEM

@@ -3,10 +3,9 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import io
-import urllib.parse
 
 # ---------------------------------------------------------
-# PAGE CONFIG & STYLING
+# PAGE CONFIG & FIXED CLEAN CSS STYLING
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="نظام إدارة مخزون البناء والمشاريع",
@@ -29,6 +28,24 @@ st.markdown("""
         color: #0F172A !important;
         border-color: #CBD5E1 !important;
     }
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border-right: 6px solid #3B82F6;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 28px !important;
+        font-weight: 800;
+        color: #1E3A8A;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 14px !important;
+        color: #64748B;
+        font-weight: 600;
+    }
     .stButton>button {
         background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
         color: white !important;
@@ -36,9 +53,18 @@ st.markdown("""
         border-radius: 10px;
         border: none;
         padding: 10px 24px;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
     }
     .stButton>button:hover {
         background: linear-gradient(135deg, #1D4ED8 100%, #1E40AF 100%);
+    }
+    .stDownloadButton>button {
+        background: linear-gradient(135deg, #16A34A 0%, #15803D 100%) !important;
+        color: white !important;
+        font-weight: bold;
+        border-radius: 10px;
+        border: none;
+        padding: 10px 20px;
     }
     section[data-testid="stSidebar"] {
         background-color: #0F172A;
@@ -54,34 +80,13 @@ st.markdown("""
         border: 1px solid #E2E8F0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
-    .big-receipt {
+    .receipt-card {
         background-color: #ffffff;
-        border: 3px solid #1E3A8A;
-        padding: 35px;
-        border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        margin-top: 20px;
-        color: #0F172A;
-    }
-    .receipt-header {
-        text-align: center;
-        border-bottom: 3px solid #1E3A8A;
-        padding-bottom: 15px;
-        margin-bottom: 25px;
-    }
-    .highlight-box {
-        background-color: #F1F5F9;
-        padding: 20px;
+        border: 2px solid #0F172A;
+        padding: 30px;
         border-radius: 12px;
-        border-right: 6px solid #2563EB;
-        margin-bottom: 25px;
-        font-size: 18px;
-    }
-    .total-price-tag {
-        font-size: 26px;
-        color: #16A34A;
-        font-weight: bold;
-        text-align: left;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-top: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -119,14 +124,6 @@ def init_db():
             notes TEXT
         )
     ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS audit_trail (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            action TEXT NOT NULL,
-            details TEXT NOT NULL,
-            date TEXT NOT NULL
-        )
-    ''')
     conn.commit()
     conn.close()
 
@@ -135,32 +132,11 @@ init_db()
 def get_connection():
     return sqlite3.connect(DB_NAME)
 
-def log_audit(action, details):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("INSERT INTO audit_trail (action, details, date) VALUES (?, ?, ?)",
-              (action, details, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    conn.commit()
-    conn.close()
-
 # ---------------------------------------------------------
-# SIDEBAR NAVIGATION & ROLES
+# SIDEBAR NAVIGATION
 # ---------------------------------------------------------
 st.sidebar.title("🏗️ BTP Stock Pro")
 st.sidebar.markdown("<p style='color: #94A3B8; font-size: 13px;'>نظام إدارة وتتبع مواد البناء والمشاريع</p>", unsafe_allow_html=True)
-
-# Role Selection in Sidebar
-role = st.sidebar.radio("🔑 حدد صفة المستخدم:", ["المكلف بالمخزن (Magasinier)", "المسؤول (Admin)"])
-
-is_admin = False
-if role == "المسؤول (Admin)":
-    admin_pass = st.sidebar.text_input("أدخل كلمة سر المسؤول:", type="password")
-    if admin_pass == "admin123":
-        is_admin = True
-        st.sidebar.success("تم تفعيل صلاحيات المسؤول ✅")
-    elif admin_pass != "":
-        st.sidebar.error("كلمة السر خاطئة ❌")
-
 st.sidebar.markdown("---")
 
 menu = [
@@ -169,9 +145,8 @@ menu = [
     "📤 تسجيل خروج سلعة للورش", 
     "🖨️ طباعة وصل التسليم (Bon de Livraison)",
     "➕ إضافة مادة جديدة",
-    "🔐 إدارة وتعديل الأخطاء (محمي)",
-    "📜 السجل والتقارير المالية",
-    "🕵️ سجل الأمان والتغيرات (Audit Trail)",
+    "🔐 إدارة وتعديل المواد والحركات (محمي)",
+    "📜 السجل والتقارير",
     "💾 النسخ الاحتياطي"
 ]
 choice = st.sidebar.selectbox("القائمة الرئيسية", menu)
@@ -192,16 +167,12 @@ if choice == "📊 لوحة التحكم":
         df_stock['total_value'] = df_stock['quantity'] * df_stock['buy_price']
         
         col1, col2, col3, col4 = st.columns(4)
-        if is_admin:
-            col1.metric("💰 قيمة السطوك (شراء)", f"{df_stock['total_value'].sum():,.2f} DH")
-            col4.metric("📈 متوسط ثمن الشراء", f"{df_stock['buy_price'].mean():,.2f} DH")
-        else:
-            col1.metric("💰 قيمة السطوك", "محمي 🔒")
-            col4.metric("📈 متوسط ثمن الشراء", "محمي 🔒")
-            
+        col1.metric("💰 قيمة السطوك", f"{df_stock['total_value'].sum():,.2f} DH")
         col2.metric("📦 أنواع السلع", len(df_stock))
+        
         low_stock_count = len(df_stock[df_stock['quantity'] <= df_stock['min_limit']])
         col3.metric("⚠️ مواد قريبة من النفاد", low_stock_count)
+        col4.metric("📈 متوسط ثمن الشراء", f"{df_stock['buy_price'].mean():,.2f} DH")
         
         st.write("---")
         
@@ -219,26 +190,16 @@ if choice == "📊 لوحة التحكم":
         else:
             filtered_df = df_stock
 
-        if is_admin:
-            display_df = filtered_df.rename(columns={
-                'item_name': 'المادة',
-                'quantity': 'الكمية الحالية',
-                'min_limit': 'الحد الأدنى',
-                'unit': 'الوحدة',
-                'buy_price': 'سعر الشراء (DH)',
-                'sell_price': 'سعر البيع (DH)',
-                'total_value': 'إجمالي القيمة (DH)'
-            }).drop(columns=['id'])
-        else:
-            display_df = filtered_df.rename(columns={
-                'item_name': 'المادة',
-                'quantity': 'الكمية الحالية',
-                'min_limit': 'الحد الأدنى',
-                'unit': 'الوحدة',
-                'sell_price': 'سعر البيع (DH)'
-            })[['المادة', 'الكمية الحالية', 'الحد الأدنى', 'الوحدة', 'سعر البيع (DH)']]
-
-        st.dataframe(display_df, use_container_width=True)
+        display_df = filtered_df.rename(columns={
+            'item_name': 'المادة',
+            'quantity': 'الكمية الحالية',
+            'min_limit': 'الحد الأدنى',
+            'unit': 'الوحدة',
+            'buy_price': 'سعر الشراء الافتراضي (DH)',
+            'sell_price': 'سعر البيع الافتراضي (DH)',
+            'total_value': 'إجمالي القيمة (DH)'
+        })
+        st.dataframe(display_df.drop(columns=['id']), use_container_width=True)
     else:
         st.info("💡 لا توجد مواد مسجلة حتى الآن في النظام.")
 
@@ -247,6 +208,7 @@ if choice == "📊 لوحة التحكم":
 # ---------------------------------------------------------
 elif choice == "📥 تسجيل دخول سلعة":
     st.subheader("📥 تسجيل دخول سلعة من المورد (Fournisseur)")
+    st.markdown("<p style='color: #64748B;'>أدخل تفاصيل الشحنة المستلمة مع تحديد ثمن الشراء الخاص بالمورد.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -262,12 +224,7 @@ elif choice == "📥 تسجيل دخول سلعة":
                 selected_item = st.selectbox("اختر المادة:", df_items["item_name"].tolist())
                 default_buy = float(df_items[df_items["item_name"] == selected_item]["buy_price"].values[0])
                 qty_in = st.number_input("الكمية المضافة:", min_value=0.1, value=1.0)
-                
-                if is_admin:
-                    custom_buy_price = st.number_input("ثمن الشراء من عند المورد (DH):", min_value=0.0, value=default_buy)
-                else:
-                    custom_buy_price = default_buy
-                    st.info("ℹ️ يتم اعتماد ثمن الشراء الموحد افتراضياً.")
+                custom_buy_price = st.number_input("ثمن الشراء من عند المورد (DH):", min_value=0.0, value=default_buy)
             with col2:
                 supplier = st.text_input("اسم المورد (Fournisseur):")
                 ref_num = st.text_input("رقم الفاتورة أو البون (N° Bon):")
@@ -285,15 +242,15 @@ elif choice == "📥 تسجيل دخول سلعة":
                     (selected_item, "دخول", qty_in, custom_buy_price, total_cost, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), supplier, ref_num, notes))
                 conn.commit()
                 conn.close()
-                log_audit("تسجيل دخول", f"تمت إضافة كمية {qty_in} من المادة {selected_item}")
                 st.success(f"تمت إضافة الكمية للمادة '{selected_item}' بنجاح!")
                 st.rerun()
 
 # ---------------------------------------------------------
-# 3. SORTIE / CHANTIER
+# 3. SORTIE / CHANTIER (WITH CLEAN STREAMLIT BON DE LIVRAISON)
 # ---------------------------------------------------------
 elif choice == "📤 تسجيل خروج سلعة للورش":
     st.subheader("📤 تسجيل خروج سلعة إلى ورش البناء (Chantier)")
+    st.markdown("<p style='color: #64748B;'>حدد الكمية الخارجة وثمن البيع لاستخراج وصل التسليم فوراً.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -336,63 +293,55 @@ elif choice == "📤 تسجيل خروج سلعة للورش":
                 last_id = c.lastrowid
                 conn.commit()
                 conn.close()
-                log_audit("تسجيل خروج", f"تم خروج {qty_out} من {selected_item} إلى {chantier}")
                 
-                st.success("✅ تم تسجيل خروج السلعة بنجاح!")
+                st.success("✅ تم تسجيل خروج السلعة بنجاح! إليك وصل التسليم:")
                 
-                # Big Clear Receipt Card
+                # Clean Streamlit UI Bon de Livraison Card
                 st.markdown(f"""
-                <div class="big-receipt">
-                    <div class="receipt-header">
-                        <h1 style='color: #1E3A8A; margin: 0; font-size: 28px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h1>
-                        <p style='color: #64748B; font-size: 16px; margin: 5px 0 0 0;'>شركة مواد البناء والخدمات</p>
+                <div class="receipt-card">
+                    <h2 style='text-align: center; color: #1E3A8A; margin-bottom: 5px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h2>
+                    <p style='text-align: center; color: #64748B; font-size: 14px;'>شركة مواد البناء والخدمات</p>
+                    <hr style='border: 1px solid #CBD5E1;'>
+                    <div style='display: flex; justify-content: space-between; margin-bottom: 15px;'>
+                        <div><b>رقم البون:</b> #{last_id}</div>
+                        <div><b>التاريخ:</b> {current_time}</div>
                     </div>
-                    
-                    <div style='display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 20px; font-weight: bold;'>
-                        <div>📌 رقم البون الداخلي: #{last_id}</div>
-                        <div>📅 التاريخ: {current_time}</div>
+                    <div style='background-color: #F8FAFC; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #E2E8F0;'>
+                        <p style='margin: 0 0 5px 0;'>🏢 <b>الورشة / الزبون:</b> {chantier if chantier else 'غير محدد'}</p>
+                        <p style='margin: 0 0 5px 0;'>📌 <b>رقم بون الخروج:</b> {ref_num if ref_num else '—'}</p>
+                        <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> {notes if notes else '—'}</p>
                     </div>
-                    
-                    <div class="highlight-box">
-                        <p style='margin: 0 0 10px 0;'>🏢 <b>اسم الورشة / الزبون:</b> <span style='color: #1E3A8A; font-size: 20px;'>{chantier if chantier else 'غير محدد'}</span></p>
-                        <p style='margin: 0 0 10px 0;'>🔖 <b>رقم بون الخروج:</b> <span style='font-size: 18px;'>{ref_num if ref_num else '—'}</span></p>
-                        <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> <span style='font-size: 18px;'>{notes if notes else '—'}</span></p>
-                    </div>
-                    
-                    <h3 style='color: #0F172A; margin-bottom: 10px;'>📦 تفاصيل السلعة المسلمة:</h3>
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # Table Data for Receipt
                 df_receipt = pd.DataFrame([{
-                    "المادة (Désignation)": selected_item,
-                    "الكمية (Quantité)": f"{qty_out}",
-                    "ثمن الوحدة (Prix Unit)": f"{custom_sell_price:,.2f} DH",
-                    "المبلغ الإجمالي (Total)": f"{total_amt:,.2f} DH"
+                    "المادة": selected_item,
+                    "الكمية": qty_out,
+                    "ثمن الوحدة (DH)": f"{custom_sell_price:,.2f}",
+                    "المبلغ الإجمالي (DH)": f"{total_amt:,.2f}"
                 }])
                 st.dataframe(df_receipt, use_container_width=True, hide_index=True)
                 
-                st.markdown(f"""
-                <div class="big-receipt" style="margin-top: 10px; padding: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 22px; font-weight: bold;">المجموع الإجمالي للواجب دفعه:</span>
-                        <span class="total-price-tag">{total_amt:,.2f} DH</span>
-                    </div>
-                    
-                    <div style='display: flex; justify-content: space-between; margin-top: 40px; font-size: 16px; font-weight: bold;'>
-                        <div>توقيع وخاتم الشركة: <br><br>........................................</div>
-                        <div>توقيع المسؤول / المستلم: <br><br>........................................</div>
-                    </div>
+                st.markdown("""
+                <div style='display: flex; justify-content: space-between; margin-top: 30px; font-weight: bold;'>
+                    <div>توقيع وخاتم الشركة: ........................</div>
+                    <div>توقيع المسؤول / المستلم: ........................</div>
+                </div>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                st.write("")
                 st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في Mac).")
             else:
                 st.error("الكمية المطلوبة أكبر من المتوفر في السطوك!")
 
 # ---------------------------------------------------------
-# 4. BON DE LIVRAISON (ARCHIVE)
+# 4. BON DE LIVRAISON (PRINT & EXPORT ARCHIVE)
 # ---------------------------------------------------------
 elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
     st.subheader("🖨️ أرشيف وربط وصولات التسليم (Bon de Livraison)")
+    st.markdown("<p style='color: #64748B;'>اختر أي عملية خروج سابقة لاستخراج وصل التسليم الخاص بها.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -410,49 +359,41 @@ elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
             trans_row = df_out[df_out['id'] == selected_id].iloc[0]
             
             st.write("---")
+            st.markdown("### 📄 معاينة وصل التسليم")
+            
             st.markdown(f"""
-            <div class="big-receipt">
-                <div class="receipt-header">
-                    <h1 style='color: #1E3A8A; margin: 0; font-size: 28px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h1>
-                    <p style='color: #64748B; font-size: 16px; margin: 5px 0 0 0;'>شركة مواد البناء والخدمات</p>
+            <div class="receipt-card">
+                <h2 style='text-align: center; color: #1E3A8A; margin-bottom: 5px;'>📄 وُصْلُ التَّسْلِيمِ (BON DE LIVRAISON)</h2>
+                <p style='text-align: center; color: #64748B; font-size: 14px;'>شركة مواد البناء والخدمات</p>
+                <hr style='border: 1px solid #CBD5E1;'>
+                <div style='display: flex; justify-content: space-between; margin-bottom: 15px;'>
+                    <div><b>رقم البون:</b> #{trans_row['id']}</div>
+                    <div><b>التاريخ:</b> {trans_row['date']}</div>
                 </div>
-                
-                <div style='display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 20px; font-weight: bold;'>
-                    <div>📌 رقم البون الداخلي: #{trans_row['id']}</div>
-                    <div>📅 التاريخ: {trans_row['date']}</div>
+                <div style='background-color: #F8FAFC; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #E2E8F0;'>
+                    <p style='margin: 0 0 5px 0;'>🏢 <b>الورشة / الزبون:</b> {trans_row['entity'] if trans_row['entity'] else 'غير محدد'}</p>
+                    <p style='margin: 0 0 5px 0;'>📌 <b>رقم بون الخروج:</b> {trans_row['ref_num'] if trans_row['ref_num'] else '—'}</p>
+                    <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> {trans_row['notes'] if trans_row['notes'] else '—'}</p>
                 </div>
-                
-                <div class="highlight-box">
-                    <p style='margin: 0 0 10px 0;'>🏢 <b>اسم الورشة / الزبون:</b> <span style='color: #1E3A8A; font-size: 20px;'>{trans_row['entity'] if trans_row['entity'] else 'غير محدد'}</span></p>
-                    <p style='margin: 0 0 10px 0;'>🔖 <b>رقم بون الخروج:</b> <span style='font-size: 18px;'>{trans_row['ref_num'] if trans_row['ref_num'] else '—'}</span></p>
-                    <p style='margin: 0;'>👤 <b>المسؤول / السائق:</b> <span style='font-size: 18px;'>{trans_row['notes'] if trans_row['notes'] else '—'}</span></p>
-                </div>
-                
-                <h3 style='color: #0F172A; margin-bottom: 10px;'>📦 تفاصيل السلعة المسلمة:</h3>
             </div>
             """, unsafe_allow_html=True)
             
             df_receipt_arch = pd.DataFrame([{
-                "المادة (Désignation)": trans_row['item_name'],
-                "الكمية (Quantité)": f"{trans_row['quantity']}",
-                "ثمن الوحدة (Prix Unit)": f"{trans_row['unit_price']:,.2f} DH",
-                "المبلغ الإجمالي (Total)": f"{trans_row['total_price']:,.2f} DH"
+                "المادة": trans_row['item_name'],
+                "الكمية": trans_row['quantity'],
+                "ثمن الوحدة (DH)": f"{trans_row['unit_price']:,.2f}",
+                "المبلغ الإجمالي (DH)": f"{trans_row['total_price']:,.2f}"
             }])
             st.dataframe(df_receipt_arch, use_container_width=True, hide_index=True)
             
-            st.markdown(f"""
-            <div class="big-receipt" style="margin-top: 10px; padding: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 22px; font-weight: bold;">المجموع الإجمالي للواجب دفعه:</span>
-                    <span class="total-price-tag">{trans_row['total_price']:,.2f} DH</span>
-                </div>
-                
-                <div style='display: flex; justify-content: space-between; margin-top: 40px; font-size: 16px; font-weight: bold;'>
-                    <div>توقيع وخاتم الشركة: <br><br>........................................</div>
-                    <div>توقيع المسؤول / المستلم: <br><br>........................................</div>
-                </div>
+            st.markdown("""
+            <div style='display: flex; justify-content: space-between; margin-top: 30px; font-weight: bold;'>
+                <div>توقيع وخاتم الشركة: ........................</div>
+                <div>توقيع المسؤول / المستلم: ........................</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            st.write("")
             st.info("💡 للطباعة المباشرة: اضغط على **Ctrl + P** (أو Cmd + P في جهاز Mac).")
 
 # ---------------------------------------------------------
@@ -460,6 +401,7 @@ elif choice == "🖨️ طباعة وصل التسليم (Bon de Livraison)":
 # ---------------------------------------------------------
 elif choice == "➕ إضافة مادة جديدة":
     st.subheader("➕ إضافة مادة بناء جديدة للقائمة")
+    st.markdown("<p style='color: #64748B;'>تسجيل مادة جديدة وتحديد وحدتها والحد الأدنى للتنبيه.</p>", unsafe_allow_html=True)
     st.write("")
     
     with st.form("add_item_form"):
@@ -470,10 +412,7 @@ elif choice == "➕ إضافة مادة جديدة":
             initial_qty = st.number_input("الكمية الأولية", min_value=0.0, value=0.0)
         with col2:
             min_limit = st.number_input("حد التنبيه الأدنى (Min Stock)", min_value=0.0, value=10.0)
-            if is_admin:
-                buy_price = st.number_input("سعر الشراء الافتراضي (DH)", min_value=0.0, value=0.0)
-            else:
-                buy_price = 0.0
+            buy_price = st.number_input("سعر الشراء الافتراضي (DH)", min_value=0.0, value=0.0)
             sell_price = st.number_input("سعر البيع الافتراضي (DH)", min_value=0.0, value=0.0)
 
         st.write("")
@@ -493,7 +432,6 @@ elif choice == "➕ إضافة مادة جديدة":
                             (item_name.strip(), "دخول", initial_qty, buy_price, initial_qty * buy_price, 
                              datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "مخزون أولي"))
                     conn.commit()
-                    log_audit("إضافة مادة", f"إضافة مادة جديدة {item_name.strip()}")
                     st.success("تمت إضافة المادة بنجاح!")
                     st.rerun()
                 except sqlite3.IntegrityError:
@@ -502,12 +440,20 @@ elif choice == "➕ إضافة مادة جديدة":
                     conn.close()
 
 # ---------------------------------------------------------
-# 6. EDIT / DELETE ITEMS & TRANSACTIONS (PROTECTED ADMIN ONLY)
+# 6. EDIT / DELETE ITEMS & TRANSACTIONS (PROTECTED BY PASSWORD)
 # ---------------------------------------------------------
-elif choice == "🔐 إدارة وتعديل الأخطاء (محمي)":
-    st.subheader("🔐 صفحة محمية: إدارة وتعديل الحركات والمواد")
+elif choice == "🔐 إدارة وتعديل المواد والحركات (محمي)":
+    st.subheader("🔐 صفحة محمية: إدارة، تعديل، وتصحيح الأخطاء")
+    st.markdown("<p style='color: #64748B;'>منطقة خاصة بالمسؤول لتعديل الأثمنة أو حذف الحركات الخاطئة.</p>", unsafe_allow_html=True)
+    st.write("")
     
-    if is_admin:
+    ADMIN_PASSWORD = "admin123"
+    password_input = st.text_input("أدخل كلمة سر المسؤول (Admin Password):", type="password")
+    
+    if password_input == ADMIN_PASSWORD:
+        st.success("مرحبا بك يا مسؤول، تم التحقق بنجاح.")
+        st.write("")
+        
         tab1, tab2 = st.tabs(["🛠️ تعديل أو حذف المواد", "📜 إدارة وتصحيح الحركات السابقة"])
         
         with tab1:
@@ -539,7 +485,6 @@ elif choice == "🔐 إدارة وتعديل الأخطاء (محمي)":
                         """, (new_min, new_buy, new_sell, new_unit, selected_item))
                         conn.commit()
                         conn.close()
-                        log_audit("تعديل مادة", f"تعديل أسعار وبيانات المادة {selected_item}")
                         st.success("تم التحديث بنجاح!")
                         st.rerun()
 
@@ -550,9 +495,10 @@ elif choice == "🔐 إدارة وتعديل الأخطاء (محمي)":
                     c.execute("DELETE FROM inventory WHERE item_name=?", (selected_item,))
                     conn.commit()
                     conn.close()
-                    log_audit("حذف مادة", f"حذف المادة {selected_item} نهائياً")
                     st.warning("تم الحذف بنجاح!")
                     st.rerun()
+            else:
+                st.info("لا توجد مواد في المخزون للتعديل.")
 
         with tab2:
             st.write("اختر الحركة التي وقع فيها خطأ لحذفها وتصحيح المخزون تلقائياً:")
@@ -581,17 +527,20 @@ elif choice == "🔐 إدارة وتعديل الأخطاء (محمي)":
                         c.execute("DELETE FROM transactions WHERE id = ?", (trans_id,))
                         conn.commit()
                         conn.close()
-                        log_audit("حذف حركة", f"حذف حركة رقم #{trans_id} الخاصة بـ {trans_row['item_name']}")
                         st.success("تمت عملية الإصلاح بنجاح!")
                         st.rerun()
-    else:
-        st.warning("⚠️ هاته الصفحة محمية وتتطلب تفعيل صلاحيات المسؤول (Admin) من القائمة الجانبية.")
+            else:
+                st.info("لا توجد أي حركات مسجلة لتصحيحها.")
+            
+    elif password_input != "":
+        st.error("❌ كلمة السر غير صحيحة!")
 
 # ---------------------------------------------------------
-# 7. HISTORIQUE, REPORTS & WHATSAPP
+# 6. HISTORIQUE & EXCEL
 # ---------------------------------------------------------
-elif choice == "📜 السجل والتقارير المالية":
-    st.subheader("📜 تاريخ الحركات والتقارير المالية")
+elif choice == "📜 السجل والتقارير":
+    st.subheader("📜 تاريخ الحركات ومجموع المبالغ اليومية")
+    st.markdown("<p style='color: #64748B;'>سجل شامل لكل عمليات الدخول والخروج مع إمكانية التحميل بصيغة Excel.</p>", unsafe_allow_html=True)
     st.write("")
     
     conn = get_connection()
@@ -601,13 +550,15 @@ elif choice == "📜 السجل والتقارير المالية":
     conn.close()
     
     if not df_trans.empty:
-        display_df = df_trans.rename(columns={
+        df_trans['day'] = pd.to_datetime(df_trans['date']).dt.strftime('%Y-%m-%d')
+        
+        display_df = df_trans[['date', 'item_name', 'type', 'quantity', 'unit_price', 'total_price', 'entity', 'ref_num', 'notes']].rename(columns={
             'date': 'التاريخ والوقت',
             'item_name': 'المادة',
             'type': 'الحركة (دخول/خروج)',
             'quantity': 'الكمية',
             'unit_price': 'ثمن الوحدة (DH)',
-            'total_price': 'المبلغ الإجمالي (DH)',
+            'total_price': 'المبلغ الإجمالي للحركة (DH)',
             'entity': 'الجهة (المورد/الورش)',
             'ref_num': 'المرجع',
             'notes': 'ملاحظات'
@@ -616,91 +567,39 @@ elif choice == "📜 السجل والتقارير المالية":
         st.dataframe(display_df, use_container_width=True)
         
         st.write("---")
-        st.subheader("📅 ملخص المجاميع المالية وإرسال التقرير")
+        st.subheader("📅 ملخص المجاميع المالية حسب الأيام")
         
         df_trans['date_only'] = pd.to_datetime(df_trans['date']).dt.date
         daily_summary = df_trans.groupby(['date_only', 'type'])['total_price'].sum().unstack(fill_value=0)
         
-        total_in = df_trans[df_trans['type'] == 'دخول']['total_price'].sum()
-        total_out = df_trans[df_trans['type'] == 'خروج']['total_price'].sum()
-        
-        col1, col2 = st.columns(2)
-        col1.metric("إجمالي المبيعات (خروج)", f"{total_out:,.2f} DH")
-        if is_admin:
-            col2.metric("إجمالي المشتريات (دخول)", f"{total_in:,.2f} DH")
-        else:
-            col2.metric("إجمالي المشتريات", "محمي 🔒")
-
+        if 'دخول' in daily_summary.columns:
+            daily_summary = daily_summary.rename(columns={'دخول': 'إجمالي المشتريات (دخول) DH'})
+        if 'خروج' in daily_summary.columns:
+            daily_summary = daily_summary.rename(columns={'خروج': 'إجمالي المبيعات (خروج) DH'})
+            
         st.dataframe(daily_summary, use_container_width=True)
         st.write("")
         
-        col_ex, col_wa = st.columns(2)
-        
-        # Excel Export
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             display_df.to_excel(writer, index=False, sheet_name='Historique_Stock')
             daily_summary.to_excel(writer, sheet_name='Totaux_Par_Jour')
         
-        with col_ex:
-            st.download_button(
-                label="📊 تحميل التقرير الشامل بصيغة Excel",
-                data=buffer.getvalue(),
-                file_name=f"rapport_stock_{datetime.now().strftime('%Y_%m_%d')}.xlsx",
-                mime="application/vnd.ms-excel"
-            )
-            
-        # WhatsApp Direct Share Link
-        with col_wa:
-            report_msg = f"📊 *تقرير حركة المخزون - شركة مواد البناء*\n📅 *التاريخ:* {datetime.now().strftime('%Y-%m-%d')}\n--------------------\n💰 *إجمالي المبيعات:* {total_out:,.2f} DH"
-            if is_admin:
-                report_msg += f"\n📦 *إجمالي المشتريات:* {total_in:,.2f} DH"
-            report_msg += "\n\n✅ تم استخراج التقرير بنجاح عبر BTP Stock Pro."
-            
-            encoded_msg = urllib.parse.quote(report_msg)
-            whatsapp_url = f"https://wa.me/?text={encoded_msg}"
-            
-            st.markdown(f'''
-                <a href="{whatsapp_url}" target="_blank">
-                    <button style="background-color: #25D366; color: white; font-weight: bold; border-radius: 10px; border: none; padding: 10px 20px; cursor: pointer; width: 100%;">
-                        📲 مشاركة التقرير عبر WhatsApp
-                    </button>
-                </a>
-            ''', unsafe_allow_html=True)
+        st.download_button(
+            label="📊 تحميل السجل والتقارير بصيغة Excel",
+            data=buffer.getvalue(),
+            file_name=f"rapport_stock_{datetime.now().strftime('%Y_%m_%d')}.xlsx",
+            mime="application/vnd.ms-excel"
+        )
     else:
         st.info("لا توجد أي حركات مسجلة حتى الآن.")
 
 # ---------------------------------------------------------
-# 8. AUDIT TRAIL (SECURITY LOG)
-# ---------------------------------------------------------
-elif choice == "🕵️ سجل الأمان والتغيرات (Audit Trail)":
-    st.subheader("🕵️ سجل الأمان وتتبع التعديلات (Audit Trail)")
-    st.markdown("<p style='color: #64748B;'>يعرض جميع العمليات الحساسة وتعديلات المخزون للوقوف على الأخطاء والتغييرات.</p>", unsafe_allow_html=True)
-    st.write("")
-    
-    if is_admin:
-        conn = get_connection()
-        df_audit = pd.read_sql_query("SELECT * FROM audit_trail ORDER BY id DESC", conn)
-        conn.close()
-        
-        if not df_audit.empty:
-            display_audit = df_audit.rename(columns={
-                'id': 'الرقم',
-                'action': 'نوع العملية',
-                'details': 'التفاصيل',
-                'date': 'التاريخ والوقت'
-            })
-            st.dataframe(display_audit, use_container_width=True)
-        else:
-            st.info("لا توجد أي سجلات تعديل حتى الآن.")
-    else:
-        st.warning("⚠️ هاته الصفحة محمية وتتطلب تفعيل صلاحيات المسؤول (Admin).")
-
-# ---------------------------------------------------------
-# 9. BACKUP DATABASE
+# 7. BACKUP DATABASE
 # ---------------------------------------------------------
 elif choice == "💾 النسخ الاحتياطي":
     st.subheader("💾 حفظ نسخة احتياطية من قاعدة البيانات")
+    st.markdown("<p style='color: #64748B;'>تحميل نسخة أمان لملف قاعدة البيانات للاحتفاظ بها.</p>", unsafe_allow_html=True)
     st.write("")
     
     try:
@@ -709,7 +608,7 @@ elif choice == "💾 النسخ الاحتياطي":
                 label="📥 تحميل ملف قاعدة البيانات (.db)",
                 data=fp,
                 file_name=f"stock_batimen_backup_{datetime.now().strftime('%Y_%m_%d')}.db",
-                mime="application/x-sqlite3",
+                mime="application/x-sqlite3"
             )
     except FileNotFoundError:
         st.error("لم يتم العثور على قاعدة البيانات بعد.")
